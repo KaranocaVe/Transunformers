@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Transunformers Model Parse v1",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "status", "model", "modules"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "status": { "type": "string", "enum": ["ok", "error"] },
+    "model": {
+      "type": "object",
+      "required": ["id", "safe_id"],
+      "properties": {
+        "id": { "type": "string" },
+        "safe_id": { "type": "string" },
+        "source": { "type": ["string", "null"] },
+        "revision": { "type": ["string", "null"] },
+        "auto_class": { "type": ["string", "null"] },
+        "config_class": { "type": ["string", "null"] },
+        "class": { "type": ["string", "null"] },
+        "model_type": { "type": ["string", "null"] },
+        "architectures": { "type": ["array", "null"], "items": { "type": "string" } },
+        "is_encoder_decoder": { "type": "boolean" },
+        "mapping_names": { "type": "array", "items": { "type": "string" } },
+        "parameters": { "$ref": "#/$defs/summary" },
+        "buffers": { "$ref": "#/$defs/summary" },
+        "size_bytes": { "type": "integer" },
+        "config": { "type": "object" },
+        "weights_loaded": { "type": "boolean" },
+        "empty_weights": { "type": "boolean" }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "required": ["tree", "flat", "module_count"],
+      "properties": {
+        "tree": { "$ref": "#/$defs/node" },
+        "compact_tree": { "$ref": "#/$defs/node" },
+        "flat": {
+          "type": "object",
+          "required": ["nodes", "edges"],
+          "properties": {
+            "nodes": { "type": "array", "items": { "$ref": "#/$defs/flat_node" } },
+            "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } }
+          }
+        },
+        "flat_compact": {
+          "type": "object",
+          "required": ["nodes", "edges"],
+          "properties": {
+            "nodes": { "type": "array", "items": { "$ref": "#/$defs/flat_node" } },
+            "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } }
+          }
+        },
+        "module_count": { "type": "integer" }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "summary_file": { "type": "string" },
+        "full_file": { "type": "string" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "python": { "type": "string" },
+        "platform": { "type": "string" },
+        "torch": { "type": "string" },
+        "transformers": { "type": "string" },
+        "device": { "type": "string" },
+        "dtype": { "type": "string" }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "error": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "message": { "type": "string" },
+        "traceback": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "required": ["count", "trainable", "size_bytes"],
+      "properties": {
+        "count": { "type": "integer" },
+        "trainable": { "type": "integer" },
+        "size_bytes": { "type": "integer" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["name", "path", "class", "parameters", "buffers", "children"],
+      "properties": {
+        "name": { "type": "string" },
+        "path": { "type": "string" },
+        "class": { "type": "string" },
+        "index": { "type": ["integer", "null"] },
+        "kind": { "type": "string" },
+        "collapsed": { "type": "boolean" },
+        "repeat": { "type": "integer" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "parameters": { "$ref": "#/$defs/summary_pair" },
+        "buffers": { "$ref": "#/$defs/summary_pair" },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/node" } }
+      }
+    },
+    "flat_node": {
+      "type": "object",
+      "required": ["path", "name", "class", "parameters", "buffers", "child_ids", "depth"],
+      "properties": {
+        "name": { "type": "string" },
+        "path": { "type": "string" },
+        "class": { "type": "string" },
+        "index": { "type": ["integer", "null"] },
+        "kind": { "type": "string" },
+        "collapsed": { "type": "boolean" },
+        "repeat": { "type": "integer" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "parameters": { "$ref": "#/$defs/summary_pair" },
+        "buffers": { "$ref": "#/$defs/summary_pair" },
+        "child_ids": { "type": "array", "items": { "type": "string" } },
+        "depth": { "type": "integer" }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["source", "target"],
+      "properties": {
+        "source": { "type": "string" },
+        "target": { "type": "string" }
+      }
+    },
+    "summary_pair": {
+      "type": "object",
+      "required": ["self", "total"],
+      "properties": {
+        "self": { "$ref": "#/$defs/summary" },
+        "total": { "$ref": "#/$defs/summary" }
+      }
+    }
+  }
+}
