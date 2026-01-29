@@ -1,0 +1,66 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+.venv/
+.venv*/
+venv/
+env/
+ENV/
+__pypackages__/
+
+*.egg-info/
+.eggs/
+*.egg
+*.whl
+
+build/
+dist/
+pip-wheel-metadata/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.cache/
+.pyre/
+.ipynb_checkpoints/
+
+# Node / frontend
+node_modules/
+.vite/
+.eslintcache
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.parcel-cache/
+.turbo/
+.next/
+out/
+
+# Project outputs
+/data/models/
