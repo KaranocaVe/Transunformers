@@ -21,7 +21,9 @@ def _chunk_filename(key: str, compression: str) -> str:
     return f"{safe_key}{_chunk_suffix(compression)}"
 
 
-def _build_manifest_and_chunks(data: dict[str, Any], *, compression: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def _build_manifest_and_chunks(
+    data: dict[str, Any], *, compression: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
     manifest: dict[str, Any] = {}
     for key in ("schema_version", "generated_at", "status", "runtime", "warnings"):
         if key in data:
@@ -37,6 +39,10 @@ def _build_manifest_and_chunks(data: dict[str, Any], *, compression: str) -> tup
     trace = data.get("trace", None)
     if isinstance(trace, dict) and "enabled" in trace:
         manifest["trace"] = {"enabled": trace.get("enabled")}
+        if "full_file" in trace:
+            manifest["trace"]["full_file"] = trace["full_file"]
+        if "summary_file" in trace:
+            manifest["trace"]["summary_file"] = trace["summary_file"]
     elif trace is not None:
         manifest["trace"] = {"enabled": False}
 

@@ -7,7 +7,14 @@ from typing import Any
 from .utils import read_json, write_json
 
 
-def trace_model_forward(model, inputs: dict[str, Any], *, store: str, output_dir: Path) -> dict[str, Any]:
+def trace_model_forward(
+    model,
+    inputs: dict[str, Any],
+    *,
+    store: str,
+    output_dir: Path,
+    compression: str = "none",
+) -> dict[str, Any]:
     store = store.lower()
     if store not in {"summary", "full", "both"}:
         raise ValueError("trace store must be one of: summary, full, both")
@@ -23,14 +30,20 @@ def trace_model_forward(model, inputs: dict[str, Any], *, store: str, output_dir
         summary_src = base.with_name(f"{base.name}_SUMMARY.json")
         full_src = base.with_name(f"{base.name}_FULL_TENSORS.json")
 
+        suffix = ""
+        if compression == "gzip":
+            suffix = ".gz"
+        elif compression == "zstd":
+            suffix = ".zst"
+
         trace_info: dict[str, Any] = {}
         if store in {"summary", "both"} and summary_src.exists():
-            summary_dest = output_dir / "trace_summary.json"
+            summary_dest = output_dir / f"trace_summary.json{suffix}"
             write_json(summary_dest, read_json(summary_src))
             trace_info["summary_file"] = summary_dest.name
 
         if store in {"full", "both"} and full_src.exists():
-            full_dest = output_dir / "trace_full.json"
+            full_dest = output_dir / f"trace_full.json{suffix}"
             write_json(full_dest, read_json(full_src))
             trace_info["full_file"] = full_dest.name
 

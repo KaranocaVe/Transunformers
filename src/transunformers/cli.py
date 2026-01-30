@@ -198,6 +198,7 @@ def _run_parse(args: argparse.Namespace) -> None:
                 transformers_src=args.transformers_src,
                 device=args.device,
                 dtype=args.dtype,
+                compression=args.compression,
             )
         except Exception as exc:
             data = error_payload(model_id, exc)

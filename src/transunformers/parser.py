@@ -492,6 +492,7 @@ def parse_model(
     transformers_src: str | None = None,
     device: str = "cpu",
     dtype: str | None = None,
+    compression: str = "none",
 ) -> dict[str, Any]:
     torch = import_torch()
     transformers = import_transformers(transformers_src)
@@ -557,6 +558,7 @@ def parse_model(
                     inputs,
                     store=trace_store,
                     output_dir=output_dir,
+                    compression=compression,
                 )
             )
         except Exception as exc:
@@ -638,6 +640,7 @@ def parse_model_from_config(
     max_non_meta_buffer_bytes: int = 5_000_000,
     trust_remote_code: bool = False,
     source: str | None = None,
+    compression: str = "none",
 ) -> dict[str, Any]:
     torch = import_torch()
     transformers = import_transformers(transformers_src)
