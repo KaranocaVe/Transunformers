@@ -24,11 +24,21 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="transunformers")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    parse_cmd = subparsers.add_parser("parse", help="Parse one or more models into JSON artifacts.")
-    parse_cmd.add_argument("-m", "--model", action="append", dest="models", help="Model id or local path.")
-    parse_cmd.add_argument("--manifest", type=Path, help="File with model ids, one per line.")
+    parse_cmd = subparsers.add_parser(
+        "parse", help="Parse one or more models into JSON artifacts."
+    )
+    parse_cmd.add_argument(
+        "-m", "--model", action="append", dest="models", help="Model id or local path."
+    )
+    parse_cmd.add_argument(
+        "--manifest", type=Path, help="File with model ids, one per line."
+    )
     parse_cmd.add_argument("--out-dir", type=Path, default=Path("data/models"))
-    parse_cmd.add_argument("--config-only", action="store_true", help="Instantiate from config without weights.")
+    parse_cmd.add_argument(
+        "--config-only",
+        action="store_true",
+        help="Instantiate from config without weights.",
+    )
     parse_cmd.add_argument(
         "--auto-class",
         default="auto",
@@ -48,23 +58,37 @@ def _parse_args() -> argparse.Namespace:
     parse_cmd.add_argument("--trust-remote-code", action="store_true")
     parse_cmd.add_argument("--include-parameter-details", action="store_true")
     parse_cmd.add_argument("--include-buffer-details", action="store_true")
-    parse_cmd.add_argument("--no-collapse-layers", dest="collapse_layers", action="store_false")
+    parse_cmd.add_argument(
+        "--no-collapse-layers", dest="collapse_layers", action="store_false"
+    )
     parse_cmd.add_argument("--trace", action="store_true")
-    parse_cmd.add_argument("--trace-store", default="summary", choices=["summary", "full", "both"])
+    parse_cmd.add_argument(
+        "--trace-store", default="summary", choices=["summary", "full", "both"]
+    )
     parse_cmd.add_argument("--trace-text", default=None)
     parse_cmd.add_argument("--transformers-src", default=None)
     parse_cmd.add_argument("--device", default="cpu")
-    parse_cmd.add_argument("--dtype", default="auto", choices=["auto", "float32", "float16", "bfloat16"])
+    parse_cmd.add_argument(
+        "--dtype", default="auto", choices=["auto", "float32", "float16", "bfloat16"]
+    )
     parse_cmd.add_argument(
         "--compression",
         default="none",
         choices=["none", "gzip", "zstd"],
         help="Compression for model.json output.",
     )
-    parse_cmd.add_argument("--compact-json", action="store_true", help="Write compact JSON without indentation.")
-    parse_cmd.add_argument("--index", action="store_true", help="Update data index after parsing.")
+    parse_cmd.add_argument(
+        "--compact-json",
+        action="store_true",
+        help="Write compact JSON without indentation.",
+    )
+    parse_cmd.add_argument(
+        "--index", action="store_true", help="Update data index after parsing."
+    )
 
-    index_cmd = subparsers.add_parser("index", help="Build index.json from existing model outputs.")
+    index_cmd = subparsers.add_parser(
+        "index", help="Build index.json from existing model outputs."
+    )
     index_cmd.add_argument("--data-dir", type=Path, default=Path("data/models"))
     index_cmd.add_argument("--out", type=Path, default=None)
 
@@ -74,9 +98,13 @@ def _parse_args() -> argparse.Namespace:
     )
     parse_all_cmd.add_argument("--out-dir", type=Path, default=Path("data/models"))
     parse_all_cmd.add_argument("--transformers-src", default=None)
-    parse_all_cmd.add_argument("--no-collapse-layers", dest="collapse_layers", action="store_false")
+    parse_all_cmd.add_argument(
+        "--no-collapse-layers", dest="collapse_layers", action="store_false"
+    )
     parse_all_cmd.add_argument("--device", default="cpu")
-    parse_all_cmd.add_argument("--dtype", default="auto", choices=["auto", "float32", "float16", "bfloat16"])
+    parse_all_cmd.add_argument(
+        "--dtype", default="auto", choices=["auto", "float32", "float16", "bfloat16"]
+    )
     parse_all_cmd.add_argument(
         "--no-empty-weights",
         dest="empty_weights",
@@ -122,7 +150,11 @@ def _parse_args() -> argparse.Namespace:
         choices=["none", "gzip", "zstd"],
         help="Compression for model.json output.",
     )
-    parse_all_cmd.add_argument("--compact-json", action="store_true", help="Write compact JSON without indentation.")
+    parse_all_cmd.add_argument(
+        "--compact-json",
+        action="store_true",
+        help="Write compact JSON without indentation.",
+    )
 
     compress_cmd = subparsers.add_parser(
         "compress",
@@ -135,9 +167,17 @@ def _parse_args() -> argparse.Namespace:
         choices=["gzip", "zstd"],
         help="Compression format for model.json outputs.",
     )
-    compress_cmd.add_argument("--keep-json", action="store_true", help="Keep original model.json files.")
-    compress_cmd.add_argument("--overwrite", action="store_true", help="Overwrite existing compressed files.")
-    compress_cmd.add_argument("--pretty-json", action="store_true", help="Keep pretty-printed JSON before compression.")
+    compress_cmd.add_argument(
+        "--keep-json", action="store_true", help="Keep original model.json files."
+    )
+    compress_cmd.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing compressed files."
+    )
+    compress_cmd.add_argument(
+        "--pretty-json",
+        action="store_true",
+        help="Keep pretty-printed JSON before compression.",
+    )
     compress_cmd.add_argument("--no-index", dest="index", action="store_false")
 
     chunk_cmd = subparsers.add_parser(
@@ -151,9 +191,19 @@ def _parse_args() -> argparse.Namespace:
         choices=["gzip", "zstd", "none"],
         help="Compression format for chunk files.",
     )
-    chunk_cmd.add_argument("--keep-full", action="store_true", help="Keep the original full model.json file.")
-    chunk_cmd.add_argument("--overwrite", action="store_true", help="Overwrite existing chunked outputs.")
-    chunk_cmd.add_argument("--pretty-json", action="store_true", help="Keep pretty-printed JSON in chunk files.")
+    chunk_cmd.add_argument(
+        "--keep-full",
+        action="store_true",
+        help="Keep the original full model.json file.",
+    )
+    chunk_cmd.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing chunked outputs."
+    )
+    chunk_cmd.add_argument(
+        "--pretty-json",
+        action="store_true",
+        help="Keep pretty-printed JSON in chunk files.",
+    )
     chunk_cmd.add_argument("--no-index", dest="index", action="store_false")
 
     return parser.parse_args()
@@ -236,7 +286,9 @@ def _run_parse_all(args: argparse.Namespace) -> None:
         compression=args.compression,
         compact_json=compact_json,
     )
-    print(f"Parsed: {result['parsed']} | Failed: {result['failed']} | Mapping errors: {result['errors']}")
+    print(
+        f"Parsed: {result['parsed']} | Failed: {result['failed']} | Mapping errors: {result['errors']}"
+    )
 
 
 def _run_compress(args: argparse.Namespace) -> None:

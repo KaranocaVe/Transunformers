@@ -10,7 +10,12 @@ from typing import Any
 
 from .hf_compat import import_torch, import_transformers
 from .inputs import build_dummy_inputs
-from .introspect import build_module_tree, compact_module_tree, flatten_tree, summarize_named_tensors
+from .introspect import (
+    build_module_tree,
+    compact_module_tree,
+    flatten_tree,
+    summarize_named_tensors,
+)
 from .trace import trace_model_forward
 from .utils import ensure_dir, safe_model_dir_name, to_jsonable, utc_now_iso
 
@@ -27,7 +32,9 @@ AUTO_CLASS_MAP = {
 }
 
 
-def _resolve_model_class(transformers, config, auto_class: str, trust_remote_code: bool):
+def _resolve_model_class(
+    transformers, config, auto_class: str, trust_remote_code: bool
+):
     auto_class = (auto_class or "auto").lower()
 
     if trust_remote_code:
@@ -59,7 +66,9 @@ def _resolve_dtype(torch, dtype: str | None):
     return mapping[dtype]
 
 
-def _load_tokenizer(transformers, model_id: str, *, revision: str | None, trust_remote_code: bool):
+def _load_tokenizer(
+    transformers, model_id: str, *, revision: str | None, trust_remote_code: bool
+):
     try:
         return transformers.AutoTokenizer.from_pretrained(
             model_id,
@@ -93,23 +102,38 @@ def _sanitize_config(config, *, model_class_name: str | None = None) -> list[str
             config.pad_token_id = max(0, vocab_size - 1)
             changes.append("pad_token_id_clamped")
 
-    if not hasattr(config, "hidden_size") or getattr(config, "hidden_size", None) is None:
-        candidate = getattr(config, "d_model", None) or getattr(config, "model_dim", None)
+    if (
+        not hasattr(config, "hidden_size")
+        or getattr(config, "hidden_size", None) is None
+    ):
+        candidate = getattr(config, "d_model", None) or getattr(
+            config, "model_dim", None
+        )
         config.hidden_size = candidate or 768
         changes.append("hidden_size")
 
-    if not hasattr(config, "intermediate_size") or getattr(config, "intermediate_size", None) is None:
+    if (
+        not hasattr(config, "intermediate_size")
+        or getattr(config, "intermediate_size", None) is None
+    ):
         hidden = getattr(config, "hidden_size", None) or 768
         config.intermediate_size = hidden * 4
         changes.append("intermediate_size")
 
     if hasattr(config, "qk_channels") and getattr(config, "qk_channels", None) is None:
-        candidate = getattr(config, "d_model", None) or getattr(config, "hidden_size", None) or getattr(config, "embed_dim", None)
+        candidate = (
+            getattr(config, "d_model", None)
+            or getattr(config, "hidden_size", None)
+            or getattr(config, "embed_dim", None)
+        )
         if candidate is not None:
             config.qk_channels = candidate
             changes.append("qk_channels")
 
-    if not hasattr(config, "num_hidden_layers") or getattr(config, "num_hidden_layers", None) is None:
+    if (
+        not hasattr(config, "num_hidden_layers")
+        or getattr(config, "num_hidden_layers", None) is None
+    ):
         config.num_hidden_layers = 1
         changes.append("num_hidden_layers")
 
@@ -120,22 +144,34 @@ def _sanitize_config(config, *, model_class_name: str | None = None) -> list[str
             config.head_dim = hidden // heads
             changes.append("head_dim")
 
-    if not hasattr(config, "num_attention_heads") or getattr(config, "num_attention_heads", None) is None:
+    if (
+        not hasattr(config, "num_attention_heads")
+        or getattr(config, "num_attention_heads", None) is None
+    ):
         config.num_attention_heads = 1
         changes.append("num_attention_heads")
 
-    if not hasattr(config, "num_key_value_heads") or getattr(config, "num_key_value_heads", None) is None:
+    if (
+        not hasattr(config, "num_key_value_heads")
+        or getattr(config, "num_key_value_heads", None) is None
+    ):
         if getattr(config, "num_attention_heads", None):
             config.num_key_value_heads = config.num_attention_heads
             changes.append("num_key_value_heads")
 
-    if hasattr(config, "decoder_hidden_size") and getattr(config, "decoder_hidden_size", None) is None:
+    if (
+        hasattr(config, "decoder_hidden_size")
+        and getattr(config, "decoder_hidden_size", None) is None
+    ):
         hidden = getattr(config, "hidden_size", None)
         if hidden is not None:
             config.decoder_hidden_size = hidden
             changes.append("decoder_hidden_size")
 
-    if hasattr(config, "decoder_num_heads") and getattr(config, "decoder_num_heads", None) is None:
+    if (
+        hasattr(config, "decoder_num_heads")
+        and getattr(config, "decoder_num_heads", None) is None
+    ):
         num_heads = getattr(config, "num_heads", None)
         if isinstance(num_heads, list) and num_heads:
             config.decoder_num_heads = num_heads[-1]
@@ -143,16 +179,25 @@ def _sanitize_config(config, *, model_class_name: str | None = None) -> list[str
             config.decoder_num_heads = getattr(config, "num_attention_heads", None) or 1
         changes.append("decoder_num_heads")
 
-    if hasattr(config, "prediction_length") and getattr(config, "prediction_length", None) is None:
+    if (
+        hasattr(config, "prediction_length")
+        and getattr(config, "prediction_length", None) is None
+    ):
         context = getattr(config, "context_length", None)
         config.prediction_length = context or 1
         changes.append("prediction_length")
 
-    if hasattr(config, "context_length") and getattr(config, "context_length", None) is None:
+    if (
+        hasattr(config, "context_length")
+        and getattr(config, "context_length", None) is None
+    ):
         config.context_length = 1
         changes.append("context_length")
 
-    if hasattr(config, "rope_scaling") and getattr(config, "rope_scaling", None) is None:
+    if (
+        hasattr(config, "rope_scaling")
+        and getattr(config, "rope_scaling", None) is None
+    ):
         config.rope_scaling = {}
         changes.append("rope_scaling")
 
@@ -163,7 +208,9 @@ def _sanitize_config(config, *, model_class_name: str | None = None) -> list[str
     if hasattr(config, "rope_parameters"):
         rope_params = getattr(config, "rope_parameters", None)
         if rope_params is None:
-            config.rope_parameters = {"rope_theta": getattr(config, "rope_theta", 10000.0)}
+            config.rope_parameters = {
+                "rope_theta": getattr(config, "rope_theta", 10000.0)
+            }
             changes.append("rope_parameters")
         elif isinstance(rope_params, dict) and "rope_theta" not in rope_params:
             rope_params = dict(rope_params)
@@ -175,11 +222,17 @@ def _sanitize_config(config, *, model_class_name: str | None = None) -> list[str
         config.dropout = 0.0
         changes.append("dropout")
 
-    if not hasattr(config, "attention_dropout") or getattr(config, "attention_dropout", None) is None:
+    if (
+        not hasattr(config, "attention_dropout")
+        or getattr(config, "attention_dropout", None) is None
+    ):
         config.attention_dropout = 0.0
         changes.append("attention_dropout")
 
-    if not hasattr(config, "attention_bias") or getattr(config, "attention_bias", None) is None:
+    if (
+        not hasattr(config, "attention_bias")
+        or getattr(config, "attention_bias", None) is None
+    ):
         config.attention_bias = False
         changes.append("attention_bias")
 
@@ -191,39 +244,74 @@ def _sanitize_config(config, *, model_class_name: str | None = None) -> list[str
         config.hidden_act = "silu"
         changes.append("hidden_act")
 
-    for attr in ("num_experts", "n_routed_experts", "n_shared_experts", "num_experts_per_tok"):
+    for attr in (
+        "num_experts",
+        "n_routed_experts",
+        "n_shared_experts",
+        "num_experts_per_tok",
+    ):
         if hasattr(config, attr) and getattr(config, attr, None) is None:
             setattr(config, attr, 1)
             changes.append(attr)
 
-    if hasattr(config, "vocabulary_map") and getattr(config, "vocabulary_map", None) is None:
+    if (
+        hasattr(config, "vocabulary_map")
+        and getattr(config, "vocabulary_map", None) is None
+    ):
         config.vocabulary_map = {"<image>": 0}
         changes.append("vocabulary_map")
 
-    has_backbone_config = hasattr(config, "backbone_config") and getattr(config, "backbone_config", None) is not None
+    has_backbone_config = (
+        hasattr(config, "backbone_config")
+        and getattr(config, "backbone_config", None) is not None
+    )
     if has_backbone_config and getattr(config, "backbone", None):
         config.backbone = None
         changes.append("backbone")
-    if not has_backbone_config and hasattr(config, "backbone") and not getattr(config, "backbone", None):
+    if (
+        not has_backbone_config
+        and hasattr(config, "backbone")
+        and not getattr(config, "backbone", None)
+    ):
         config.backbone = "resnet50"
         changes.append("backbone")
 
     if hasattr(config, "vision_config"):
         vision_cfg = getattr(config, "vision_config")
-        force_vision_embed = bool(model_class_name and "PerceptionLM" in model_class_name)
+        force_vision_embed = bool(
+            model_class_name and "PerceptionLM" in model_class_name
+        )
         if vision_cfg is not None and hasattr(vision_cfg, "architecture"):
             arch = getattr(vision_cfg, "architecture", "")
-            if isinstance(arch, str) and arch.startswith("resnet") and force_vision_embed:
+            if (
+                isinstance(arch, str)
+                and arch.startswith("resnet")
+                and force_vision_embed
+            ):
                 vision_cfg.architecture = "vit_base_patch16_224"
                 changes.append("vision_config.architecture")
             elif isinstance(arch, str) and arch.startswith("resnet"):
-                if hasattr(vision_cfg, "model_args") and getattr(vision_cfg, "model_args", None):
+                if hasattr(vision_cfg, "model_args") and getattr(
+                    vision_cfg, "model_args", None
+                ):
                     vision_cfg.model_args = None
                     changes.append("vision_config.model_args")
-        if vision_cfg is not None and hasattr(vision_cfg, "model_args") and vision_cfg.model_args is None:
+        if (
+            vision_cfg is not None
+            and hasattr(vision_cfg, "model_args")
+            and vision_cfg.model_args is None
+        ):
             arch = getattr(vision_cfg, "architecture", "")
-            if force_vision_embed or not isinstance(arch, str) or not arch.startswith("resnet"):
-                embed_dim = getattr(vision_cfg, "hidden_size", None) or getattr(vision_cfg, "embed_dim", None) or 768
+            if (
+                force_vision_embed
+                or not isinstance(arch, str)
+                or not arch.startswith("resnet")
+            ):
+                embed_dim = (
+                    getattr(vision_cfg, "hidden_size", None)
+                    or getattr(vision_cfg, "embed_dim", None)
+                    or 768
+                )
                 vision_cfg.model_args = {"embed_dim": embed_dim}
                 changes.append("vision_config.model_args")
         if vision_cfg is not None:
@@ -256,8 +344,13 @@ def _sanitize_config(config, *, model_class_name: str | None = None) -> list[str
             out_indices = None
         if isinstance(stage_names, list) and stage_names:
             max_index = len(stage_names) - 1
-            invalid = out_indices is None or len(out_indices) != 4 or any(
-                not isinstance(idx, int) or idx > max_index or idx < 0 for idx in out_indices
+            invalid = (
+                out_indices is None
+                or len(out_indices) != 4
+                or any(
+                    not isinstance(idx, int) or idx > max_index or idx < 0
+                    for idx in out_indices
+                )
             )
             if invalid:
                 start = max(0, len(stage_names) - 4)
@@ -267,25 +360,41 @@ def _sanitize_config(config, *, model_class_name: str | None = None) -> list[str
             config.out_indices = [3, 5, 7, 11]
             changes.append("out_indices")
 
-    if hasattr(config, "layers_block_type") and getattr(config, "layers_block_type", None) is None:
+    if (
+        hasattr(config, "layers_block_type")
+        and getattr(config, "layers_block_type", None) is None
+    ):
         num_layers = getattr(config, "num_hidden_layers", None) or 1
         config.layers_block_type = ["mamba"] * num_layers
         changes.append("layers_block_type")
 
-    if hasattr(config, "decoder_depth") and getattr(config, "decoder_depth", None) is None:
+    if (
+        hasattr(config, "decoder_depth")
+        and getattr(config, "decoder_depth", None) is None
+    ):
         config.decoder_depth = 1
         changes.append("decoder_depth")
 
     if config.__class__.__name__ == "Qwen3OmniMoeTalkerTextConfig":
-        if not hasattr(config, "shared_expert_intermediate_size") or getattr(config, "shared_expert_intermediate_size", None) is None:
+        if (
+            not hasattr(config, "shared_expert_intermediate_size")
+            or getattr(config, "shared_expert_intermediate_size", None) is None
+        ):
             fallback = getattr(config, "intermediate_size", None) or 1
             config.shared_expert_intermediate_size = fallback
             changes.append("shared_expert_intermediate_size")
 
     if config.__class__.__name__ == "Qwen3OmniMoeTalkerConfig":
-        if not hasattr(config, "spatial_merge_size") or getattr(config, "spatial_merge_size", None) is None:
+        if (
+            not hasattr(config, "spatial_merge_size")
+            or getattr(config, "spatial_merge_size", None) is None
+        ):
             vision_cfg = getattr(config, "vision_config", None)
-            fallback = getattr(vision_cfg, "spatial_merge_size", None) if vision_cfg is not None else None
+            fallback = (
+                getattr(vision_cfg, "spatial_merge_size", None)
+                if vision_cfg is not None
+                else None
+            )
             config.spatial_merge_size = fallback or 2
             changes.append("spatial_merge_size")
 
@@ -294,21 +403,31 @@ def _sanitize_config(config, *, model_class_name: str | None = None) -> list[str
         config.layer_types = ["full_attention"] * num_layers
         changes.append("layer_types")
 
-    if hasattr(config, "keypoint_encoder_sizes") and getattr(config, "keypoint_encoder_sizes", None) is None:
+    if (
+        hasattr(config, "keypoint_encoder_sizes")
+        and getattr(config, "keypoint_encoder_sizes", None) is None
+    ):
         config.keypoint_encoder_sizes = [32, 64, 128, 256]
         changes.append("keypoint_encoder_sizes")
 
-    if hasattr(config, "gnn_layers_types") and getattr(config, "gnn_layers_types", None) is None:
+    if (
+        hasattr(config, "gnn_layers_types")
+        and getattr(config, "gnn_layers_types", None) is None
+    ):
         config.gnn_layers_types = ["self", "cross"] * 9
         changes.append("gnn_layers_types")
 
     if model_class_name:
         if "LMHead" in model_class_name or model_class_name.endswith("ForCausalLM"):
-            if hasattr(config, "is_decoder") and not getattr(config, "is_decoder", False):
+            if hasattr(config, "is_decoder") and not getattr(
+                config, "is_decoder", False
+            ):
                 config.is_decoder = True
                 changes.append("is_decoder")
         if "EncoderModel" in model_class_name:
-            if hasattr(config, "is_encoder_decoder") and getattr(config, "is_encoder_decoder", False):
+            if hasattr(config, "is_encoder_decoder") and getattr(
+                config, "is_encoder_decoder", False
+            ):
                 config.is_encoder_decoder = False
                 changes.append("is_encoder_decoder")
 
@@ -357,7 +476,10 @@ def _fix_attention_heads(config, prefix: str = "") -> list[str]:
         ("num_attention_heads", getattr(config, "num_attention_heads", None)),
         ("num_heads", getattr(config, "num_heads", None)),
         ("num_self_attention_heads", getattr(config, "num_self_attention_heads", None)),
-        ("num_cross_attention_heads", getattr(config, "num_cross_attention_heads", None)),
+        (
+            "num_cross_attention_heads",
+            getattr(config, "num_cross_attention_heads", None),
+        ),
     ]
 
     for name, value in head_attrs:
@@ -505,7 +627,9 @@ def parse_model(
         revision=revision,
         trust_remote_code=trust_remote_code,
     )
-    model_class = _resolve_model_class(transformers, config, auto_class, trust_remote_code)
+    model_class = _resolve_model_class(
+        transformers, config, auto_class, trust_remote_code
+    )
     changes = _sanitize_config(config, model_class_name=model_class.__name__)
     if changes:
         warnings.append(f"Sanitized config fields: {', '.join(sorted(set(changes)))}")
@@ -546,11 +670,20 @@ def parse_model(
 
     trace_info: dict[str, Any] = {"enabled": False}
     if trace:
-        tokenizer = _load_tokenizer(transformers, model_id, revision=revision, trust_remote_code=trust_remote_code)
+        tokenizer = _load_tokenizer(
+            transformers,
+            model_id,
+            revision=revision,
+            trust_remote_code=trust_remote_code,
+        )
         if trace_text and not tokenizer:
-            warnings.append("Tokenizer unavailable; falling back to heuristic dummy inputs.")
+            warnings.append(
+                "Tokenizer unavailable; falling back to heuristic dummy inputs."
+            )
         try:
-            inputs = build_dummy_inputs(model, tokenizer=tokenizer, sample_text=trace_text)
+            inputs = build_dummy_inputs(
+                model, tokenizer=tokenizer, sample_text=trace_text
+            )
             trace_info = {"enabled": True}
             trace_info.update(
                 trace_model_forward(
@@ -648,7 +781,9 @@ def parse_model_from_config(
     warnings: list[str] = []
     ensure_dir(output_dir)
 
-    changes = _sanitize_config(config, model_class_name=getattr(model_class, "__name__", None))
+    changes = _sanitize_config(
+        config, model_class_name=getattr(model_class, "__name__", None)
+    )
     if changes:
         warnings.append(f"Sanitized config fields: {', '.join(sorted(set(changes)))}")
 
@@ -665,21 +800,27 @@ def parse_model_from_config(
             using_empty_weights = True
             with _disable_post_init(transformers):
                 with init_empty_weights(include_buffers=True):
-                    with _maybe_patch_layoutlmv2(transformers, model_class) as patched_layout, _maybe_patch_dinat(
-                        transformers, model_class
-                    ) as patched_nat:
+                    with (
+                        _maybe_patch_layoutlmv2(
+                            transformers, model_class
+                        ) as patched_layout,
+                        _maybe_patch_dinat(transformers, model_class) as patched_nat,
+                    ):
                         patched_layoutlmv2 = patched_layoutlmv2 or patched_layout
                         patched_dinat = patched_dinat or patched_nat
                         model = _construct_model(model_class, config, trust_remote_code)
         except Exception as exc:
             if strict_empty_weights:
                 raise RuntimeError(f"Empty weight init failed: {exc}") from exc
-            warnings.append(f"Empty weight init failed, falling back to real weights: {exc}")
+            warnings.append(
+                f"Empty weight init failed, falling back to real weights: {exc}"
+            )
 
     if model is None:
-        with _maybe_patch_layoutlmv2(transformers, model_class) as patched_layout, _maybe_patch_dinat(
-            transformers, model_class
-        ) as patched_nat:
+        with (
+            _maybe_patch_layoutlmv2(transformers, model_class) as patched_layout,
+            _maybe_patch_dinat(transformers, model_class) as patched_nat,
+        ):
             patched_layoutlmv2 = patched_layoutlmv2 or patched_layout
             patched_dinat = patched_dinat or patched_nat
             model = _construct_model(model_class, config, trust_remote_code)
@@ -754,11 +895,20 @@ def parse_model_from_config(
         if using_empty_weights:
             warnings.append("Trace disabled because empty weights were used.")
         else:
-            tokenizer = _load_tokenizer(transformers, model_id, revision=None, trust_remote_code=trust_remote_code)
+            tokenizer = _load_tokenizer(
+                transformers,
+                model_id,
+                revision=None,
+                trust_remote_code=trust_remote_code,
+            )
             if trace_text and not tokenizer:
-                warnings.append("Tokenizer unavailable; falling back to heuristic dummy inputs.")
+                warnings.append(
+                    "Tokenizer unavailable; falling back to heuristic dummy inputs."
+                )
             try:
-                inputs = build_dummy_inputs(model, tokenizer=tokenizer, sample_text=trace_text)
+                inputs = build_dummy_inputs(
+                    model, tokenizer=tokenizer, sample_text=trace_text
+                )
                 trace_info = {"enabled": True}
                 trace_info.update(
                     trace_model_forward(
@@ -773,9 +923,13 @@ def parse_model_from_config(
 
     source_value = source or ("local" if Path(model_id).exists() else "catalog")
     if patched_layoutlmv2:
-        warnings.append("LayoutLMv2 detectron2 unavailable; using a dummy visual backbone.")
+        warnings.append(
+            "LayoutLMv2 detectron2 unavailable; using a dummy visual backbone."
+        )
     if patched_dinat:
-        warnings.append("Dinat natten unavailable; bypassed backend checks for model construction.")
+        warnings.append(
+            "Dinat natten unavailable; bypassed backend checks for model construction."
+        )
     data = {
         "schema_version": "1.0",
         "generated_at": utc_now_iso(),
@@ -824,7 +978,9 @@ def parse_model_from_config(
     return data
 
 
-def error_payload(model_id: str, error: Exception, extra_model_fields: dict[str, Any] | None = None) -> dict[str, Any]:
+def error_payload(
+    model_id: str, error: Exception, extra_model_fields: dict[str, Any] | None = None
+) -> dict[str, Any]:
     payload = {
         "schema_version": "1.0",
         "generated_at": utc_now_iso(),
