@@ -16,7 +16,7 @@ type ChunkCache = Map<string, Map<ModelChunkKey, ModelChunkData>>
 const parseJson = <T>(text: string, url: string): T => {
   try {
     return JSON.parse(text) as T
-  } catch (error) {
+  } catch {
     throw new Error(`Failed to parse JSON from ${url}`)
   }
 }
@@ -161,6 +161,10 @@ export class ModelDataClient {
     this.manifestCache.set(modelPath, manifest)
     return manifest
   }
+
+
+
+
 
   async getChunk(
     identifier: ModelIdentifier,

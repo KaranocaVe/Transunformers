@@ -29,3 +29,5 @@ export const useModelChunk = (identifier?: string, chunkKey?: string) =>
     queryFn: () => modelDataClient.getChunk(identifier ?? '', chunkKey ?? ''),
     enabled: Boolean(identifier && chunkKey),
   })
+
+
