@@ -1,0 +1,67 @@
+{
+  "app": {
+    "title": "Transunformers",
+    "tagline": "一个可视化 Transformer 架构图谱。"
+  },
+  "home": {
+    "title": "模型地图",
+    "subtitle": "浏览已解析的 Transformer 结构并快速进入层级可视化。"
+  },
+  "sidebar": {
+    "title": "模型目录",
+    "subtitle": "筛选并选择一个模型开始可视化。",
+    "searchPlaceholder": "搜索模型名 / 类型 / 映射",
+    "showFilters": "显示筛选",
+    "hideFilters": "隐藏筛选",
+    "sort": "排序",
+    "sort.parameters": "参数量",
+    "sort.modules": "模块数",
+    "sort.name": "名称",
+    "modelType": "模型类型",
+    "mapping": "任务映射",
+    "clear": "清除筛选",
+    "count": "{{count}} 条结果",
+    "total": "共 {{count}} 条",
+    "empty": "没有匹配的模型。"
+  },
+  "workspace": {
+    "empty": "从左侧选择模型开始探索。",
+    "modules": "{{value}} 个模块",
+    "params": "{{value}} 参数",
+    "compact": "概览",
+    "full": "完整",
+    "vertical": "纵向",
+    "horizontal": "横向",
+    "reset": "重置",
+    "loadingFull": "正在加载完整结构"
+  },
+  "inspector": {
+    "empty": "请选择节点查看详情。",
+    "fullTree": "完整结构",
+    "parameters": "参数",
+    "buffers": "缓冲",
+    "details": "详情",
+    "kind": "类型",
+    "tags": "标签",
+    "model": "模型",
+    "parameterDetails": "参数明细",
+    "bufferDetails": "缓冲明细",
+    "none": "暂无明细。",
+    "config": "配置",
+    "loadConfig": "加载配置"
+  },
+  "status": {
+    "loading": "正在加载数据...",
+    "error": "数据加载失败。"
+  },
+  "actions": {
+    "expand": "展开",
+    "collapse": "收起",
+    "collapseAll": "收起全部",
+    "switchLanguage": "EN"
+  },
+  "labels": {
+    "params": "参数",
+    "modules": "模块"
+  }
+}

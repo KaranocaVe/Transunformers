@@ -1,0 +1,119 @@
+@config "../tailwind.config.js";
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --font-display: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-panel: #ffffff;
+  --color-panel-muted: #f5f1eb;
+  --color-border: rgba(15, 23, 42, 0.1);
+  --color-accent: #1f8b84;
+  --color-accent-strong: #0f5e59;
+  --color-warm: #f4b866;
+  --color-grid: rgba(15, 23, 42, 0.06);
+  --shadow-soft: 0 20px 40px -24px rgba(15, 23, 42, 0.25);
+  --shadow-card: 0 12px 30px -18px rgba(15, 23, 42, 0.35);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background: radial-gradient(
+      circle at 15% 10%,
+      rgba(56, 189, 168, 0.18),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 85% 0%,
+      rgba(244, 184, 102, 0.25),
+      transparent 40%
+    ),
+    linear-gradient(180deg, #f7f4ef 0%, #f1ebe4 100%);
+  background-attachment: fixed;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.text-muted {
+  color: var(--color-muted);
+}
+
+.panel-surface {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+.grid-backdrop {
+  position: relative;
+  background-image: linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.05) 1px,
+      transparent 1px
+    ),
+    linear-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+  background-size: 36px 36px;
+  background-position: -1px -1px;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.react-flow {
+  font-family: var(--font-body);
+}
+
+.react-flow__edge-path {
+  vector-effect: non-scaling-stroke;
+}
+
+.react-flow__edge.edge-structure .react-flow__edge-path {
+  stroke: rgba(15, 23, 42, 0.14);
+  stroke-width: 1;
+  stroke-dasharray: 6 6;
+}
+
+.react-flow__edge.edge-flow .react-flow__edge-path {
+  stroke: rgba(13, 148, 136, 0.95);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.react-flow__controls-button {
+  border-radius: 12px;
+  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-soft);
+}
+
+.react-flow__minimap {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}

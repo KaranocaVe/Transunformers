@@ -1,0 +1,67 @@
+{
+  "app": {
+    "title": "Transunformers",
+    "tagline": "A living catalog of Transformer architectures."
+  },
+  "home": {
+    "title": "Model Atlas",
+    "subtitle": "Browse parsed Transformer structures and jump into visual layers."
+  },
+  "sidebar": {
+    "title": "Model Explorer",
+    "subtitle": "Filter and pick a model to visualize.",
+    "searchPlaceholder": "Search model, type, or mapping",
+    "showFilters": "Show Filters",
+    "hideFilters": "Hide Filters",
+    "sort": "Sort",
+    "sort.parameters": "Params",
+    "sort.modules": "Modules",
+    "sort.name": "Name",
+    "modelType": "Model Type",
+    "mapping": "Mapping",
+    "clear": "Clear Filters",
+    "count": "{{count}} results",
+    "total": "{{count}} total",
+    "empty": "No models found."
+  },
+  "workspace": {
+    "empty": "Select a model on the left to start exploring.",
+    "modules": "{{value}} modules",
+    "params": "{{value}} params",
+    "compact": "Compact",
+    "full": "Full",
+    "vertical": "Vertical",
+    "horizontal": "Horizontal",
+    "reset": "Reset",
+    "loadingFull": "Loading full tree"
+  },
+  "inspector": {
+    "empty": "Select a node to see details.",
+    "fullTree": "Full Tree",
+    "parameters": "Parameters",
+    "buffers": "Buffers",
+    "details": "Details",
+    "kind": "Kind",
+    "tags": "Tags",
+    "model": "Model",
+    "parameterDetails": "Parameter Details",
+    "bufferDetails": "Buffer Details",
+    "none": "No details available.",
+    "config": "Config",
+    "loadConfig": "Load config"
+  },
+  "status": {
+    "loading": "Loading data...",
+    "error": "Failed to load data."
+  },
+  "actions": {
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "collapseAll": "Collapse All",
+    "switchLanguage": "中文"
+  },
+  "labels": {
+    "params": "Params",
+    "modules": "Modules"
+  }
+}
