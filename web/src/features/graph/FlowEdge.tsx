@@ -1,34 +1,9 @@
-import { BaseEdge, type EdgeProps } from 'reactflow'
-
-const ALIGN_THRESHOLD = 8
-const MIN_SEGMENT = 18
-
-const buildFlowPath = (
-  sourceX: number,
-  sourceY: number,
-  targetX: number,
-  targetY: number,
-) => {
-  const dx = targetX - sourceX
-  const dy = targetY - sourceY
-  const absDx = Math.abs(dx)
-  const absDy = Math.abs(dy)
-
-  if (absDx <= ALIGN_THRESHOLD || absDy <= ALIGN_THRESHOLD) {
-    return `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`
-  }
-
-  const vertical = absDy >= absDx
-  if (vertical) {
-    const offset = Math.max(MIN_SEGMENT, absDy / 2)
-    const midY = sourceY + Math.sign(dy) * offset
-    return `M ${sourceX} ${sourceY} L ${sourceX} ${midY} L ${targetX} ${midY} L ${targetX} ${targetY}`
-  }
-
-  const offset = Math.max(MIN_SEGMENT, absDx / 2)
-  const midX = sourceX + Math.sign(dx) * offset
-  return `M ${sourceX} ${sourceY} L ${midX} ${sourceY} L ${midX} ${targetY} L ${targetX} ${targetY}`
-}
+import {
+  BaseEdge,
+  Position,
+  getSmoothStepPath,
+  type EdgeProps,
+} from 'reactflow'
 
 export function FlowEdge({
   id,
@@ -36,16 +11,51 @@ export function FlowEdge({
   sourceY,
   targetX,
   targetY,
+  sourcePosition,
+  targetPosition,
+
   style,
   markerEnd,
+  data,
 }: EdgeProps) {
-  const path = buildFlowPath(sourceX, sourceY, targetX, targetY)
+  // Increased radius for smoother corners
+  // Use ELK routing points if available
+  let path = ''
+  if (data?.points && Array.isArray(data.points) && data.points.length > 0) {
+     const points = data.points as {x: number, y: number}[]
+     path = `M ${sourceX} ${sourceY}`
+     // We should probably rely on the points from ELK more directly, 
+     // but React Flow passes source/target X/Y which might differ slightly if we adjusted nodes.
+     // However, ELK points usually start/end at the node center or port.
+     // Let's just use the points.
+     // Optimization: filter out points that are too close (simplification)
+     
+     if (points.length > 0) {
+        path = `M ${points[0].x} ${points[0].y}`
+        for (let i = 1; i < points.length; i++) {
+           path += ` L ${points[i].x} ${points[i].y}`
+        }
+     }
+  } else {
+     const [smoothPath] = getSmoothStepPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        sourcePosition: sourcePosition ?? Position.Bottom,
+        targetPosition: targetPosition ?? Position.Top,
+        borderRadius: 20, 
+        offset: 28,
+      })
+      path = smoothPath
+  }
+
   return (
     <BaseEdge
-      id={id}
-      path={path}
-      style={style}
-      markerEnd={markerEnd ?? 'arrowclosed'}
-    />
+       id={id}
+       path={path}
+       style={style}
+       markerEnd={markerEnd}
+     />
   )
 }

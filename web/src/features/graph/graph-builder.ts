@@ -1,4 +1,4 @@
-import { Position, type Edge, type Node } from 'reactflow'
+import { Position, MarkerType, type Edge, type Node } from 'reactflow'
 
 import type { GraphNodeData, TreeNode } from './types'
 import { splitCollapsedNode } from './tree'
@@ -29,9 +29,10 @@ const getNodeSize = (node: TreeNode) => {
     return { width: baseWidth, height: 66 }
   }
   if (node.children.length > 0) {
-    return { width: Math.max(baseWidth, 300), height: 100 }
+    return { width: Math.max(baseWidth, 300), height: 130 }
   }
-  return { width: baseWidth, height: 62 }
+  // Original height: 100, original width: baseWidth
+  return { width: baseWidth - 20, height: 80 }
 }
 
 const shouldExpandNode = (
@@ -83,7 +84,8 @@ const resolveExplicitStage = (node: TreeNode): Stage | null => {
     text.includes('embed') ||
     text.includes('token') ||
     text.includes('patch') ||
-    text.includes('position')
+    text.includes('position') ||
+    text.includes('rotary')
   ) {
     return 'input'
   }
@@ -273,7 +275,6 @@ const hasParallelBranches = (children: TreeNode[]) => {
 export const resolveFlowMode = (
   parent: TreeNode,
   children: TreeNode[],
-  _stageCache?: Map<string, Stage>,
 ):
   | { mode: 'indexed'; order: TreeNode[] }
   | { mode: 'parallel' } => {
@@ -306,6 +307,8 @@ const resolveChildren = (
   return node.children
 }
 
+
+
 export const buildGraph = (
   root: TreeNode,
   options: GraphBuildOptions,
@@ -323,6 +326,8 @@ export const buildGraph = (
   const nodeMap = new Map<string, GraphNodeData>()
   const stageCache = new Map<string, Stage>()
 
+
+
   const createStructureEdge = (source: string, target: string): Edge => ({
     id: `structure:${source}=>${target}`,
     source,
@@ -339,6 +344,12 @@ export const buildGraph = (
     type: 'flow',
     data: { kind: 'flow' },
     className: 'edge-flow',
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      width: 10,
+      height: 10,
+      color: '#6366f1',
+    },
   })
 
   const resolveGraphTree = (node: TreeNode, depth: number): TreeNode => {
@@ -354,6 +365,8 @@ export const buildGraph = (
   }
 
   const layoutRoot = resolveGraphTree(root, 0)
+
+
 
   const visit = (node: TreeNode) => {
     const label = node.name
@@ -401,7 +414,9 @@ export const buildGraph = (
     }
 
     const children = node.children
-    const flowMode = resolveFlowMode(node, children, stageCache)
+
+    // Heuristic-based construction
+    const flowMode = resolveFlowMode(node, children)
 
     if (flowMode.mode === 'indexed') {
       const ordered = flowMode.order

@@ -9,12 +9,12 @@ const elk = new ELK()
 const ROOT_LAYOUT_OPTIONS: Record<string, string> = {
   'elk.algorithm': 'layered',
   'elk.direction': 'DOWN',
-  'elk.spacing.nodeNode': '48',
-  'elk.spacing.edgeNode': '18',
-  'elk.spacing.edgeEdge': '14',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '52',
-  'elk.layered.spacing.edgeNodeBetweenLayers': '30',
-  'elk.layered.spacing.edgeEdgeBetweenLayers': '24',
+  'elk.spacing.nodeNode': '40',
+  'elk.spacing.edgeNode': '20',
+  'elk.spacing.edgeEdge': '12',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '40',
+  'elk.layered.spacing.edgeNodeBetweenLayers': '24',
+  'elk.layered.spacing.edgeEdgeBetweenLayers': '20',
   'elk.layered.nodePlacement.favorStraightEdges': 'true',
   'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
   'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
@@ -24,19 +24,19 @@ const ROOT_LAYOUT_OPTIONS: Record<string, string> = {
 
 const CONTAINER_LAYOUT_OPTIONS: Record<string, string> = {
   'elk.algorithm': 'layered',
-  'elk.spacing.nodeNode': '40',
-  'elk.spacing.edgeNode': '16',
-  'elk.spacing.edgeEdge': '12',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '44',
-  'elk.layered.spacing.edgeNodeBetweenLayers': '24',
-  'elk.layered.spacing.edgeEdgeBetweenLayers': '18',
+  'elk.spacing.nodeNode': '32',
+  'elk.spacing.edgeNode': '20',
+  'elk.spacing.edgeEdge': '14',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '48',
+  'elk.layered.spacing.edgeNodeBetweenLayers': '28',
+  'elk.layered.spacing.edgeEdgeBetweenLayers': '20',
   'elk.layered.nodePlacement.favorStraightEdges': 'true',
   'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
   'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
   'elk.edgeRouting': 'ORTHOGONAL',
   'elk.contentAlignment': 'H_CENTER V_TOP',
   'elk.nodeSize.constraints': 'MINIMUM_SIZE',
-  'elk.padding': '[top=110,left=40,bottom=40,right=40]',
+  'elk.padding': '[top=80,left=40,bottom=60,right=40]',
 }
 
 type ElkGraphNode = {
@@ -46,7 +46,20 @@ type ElkGraphNode = {
   x?: number
   y?: number
   children?: ElkGraphNode[]
+  children?: ElkGraphNode[]
   layoutOptions?: Record<string, string>
+  edges?: ElkGraphEdge[]
+}
+
+type ElkGraphEdge = {
+  id: string
+  sources: string[]
+  targets: string[]
+  sections?: {
+    startPoint: { x: number; y: number }
+    endPoint: { x: number; y: number }
+    bendPoints?: { x: number; y: number }[]
+  }[]
 }
 
 type LayoutInfo = {
@@ -54,6 +67,11 @@ type LayoutInfo = {
   y: number
   width: number
   height: number
+}
+
+type EdgeLayoutInfo = {
+  id: string
+  points: { x: number; y: number }[]
 }
 
 const buildParentIndex = (node: TreeNode) => {
@@ -136,52 +154,44 @@ const collectLayout = (
   offsetX: number,
   offsetY: number,
   into: Map<string, LayoutInfo>,
+  edgeInto: Map<string, EdgeLayoutInfo>,
 ) => {
   const x = (node.x ?? 0) + offsetX
   const y = (node.y ?? 0) + offsetY
   const width = node.width ?? 0
   const height = node.height ?? 0
   into.set(node.id, { x, y, width, height })
-  node.children?.forEach((child) => collectLayout(child, x, y, into))
+  
+  if (node.edges) {
+    node.edges.forEach((edge) => {
+      if (edge.sections && edge.sections.length > 0) {
+        const points: { x: number; y: number }[] = []
+        edge.sections.forEach((section) => {
+            points.push({ x: section.startPoint.x + x, y: section.startPoint.y + y })
+            if (section.bendPoints) {
+                section.bendPoints.forEach(bp => {
+                    points.push({ x: bp.x + x, y: bp.y + y })
+                })
+            }
+            points.push({ x: section.endPoint.x + x, y: section.endPoint.y + y })
+        })
+        edgeInto.set(edge.id, { id: edge.id, points })
+      }
+    })
+  }
+
+  node.children?.forEach((child) => collectLayout(child, x, y, into, edgeInto))
 }
 
-const normalizePositions = <T>(
-  nodes: Node<T>[],
-  layoutInfo: Map<string, LayoutInfo>,
-  padding = 40,
-) => {
-  if (nodes.length === 0) {
-    return nodes
-  }
-  let minX = Infinity
-  let minY = Infinity
-  nodes.forEach((node) => {
-    const info = layoutInfo.get(node.id)
-    if (!info) return
-    minX = Math.min(minX, info.x)
-    minY = Math.min(minY, info.y)
-  })
-  const offsetX = minX < padding ? padding - minX : 0
-  const offsetY = minY < padding ? padding - minY : 0
-  if (offsetX === 0 && offsetY === 0) {
-    return nodes
-  }
-  return nodes.map((node) => ({
-    ...node,
-    position: {
-      x: node.position.x + offsetX,
-      y: node.position.y + offsetY,
-    },
-  }))
-}
+
 
 export const layoutGraph = async <T>(
   nodes: Node<T>[],
   edges: Edge[],
   root: TreeNode | null,
-): Promise<Node<T>[]> => {
+): Promise<{ nodes: Node<T>[]; edges: Edge[] }> => {
   if (!root) {
-    return nodes
+    return { nodes, edges }
   }
 
   const sizeById = new Map(
@@ -228,9 +238,10 @@ export const layoutGraph = async <T>(
 
   const layout = await elk.layout(graph)
   const layoutInfo = new Map<string, LayoutInfo>()
-  collectLayout(layout as ElkGraphNode, 0, 0, layoutInfo)
+  const edgeLayoutInfo = new Map<string, EdgeLayoutInfo>()
+  collectLayout(layout as ElkGraphNode, 0, 0, layoutInfo, edgeLayoutInfo)
 
-  const positioned = nodes.map((node) => {
+  const positionedNodes = nodes.map((node) => {
     const info = layoutInfo.get(node.id)
     if (!info) {
       return node
@@ -251,5 +262,45 @@ export const layoutGraph = async <T>(
     return next
   })
 
-  return normalizePositions(positioned, layoutInfo)
+  // Apply normalization manually to both nodes and edges
+  let minX = Infinity
+  let minY = Infinity
+  
+  if (positionedNodes.length > 0) {
+      positionedNodes.forEach(node => {
+          minX = Math.min(minX, node.position.x)
+          minY = Math.min(minY, node.position.y)
+      })
+      
+      const padding = 40
+      const offsetX = minX < padding ? padding - minX : 0
+      const offsetY = minY < padding ? padding - minY : 0
+      
+      if (offsetX !== 0 || offsetY !== 0) {
+          positionedNodes.forEach(node => {
+              node.position.x += offsetX
+              node.position.y += offsetY
+          })
+          // Offset edge points as well
+          edgeLayoutInfo.forEach(info => {
+              info.points.forEach(p => {
+                  p.x += offsetX
+                  p.y += offsetY
+              })
+          })
+      }
+  }
+
+  const routedEdges = edges.map((edge) => {
+      const info = edgeLayoutInfo.get(edge.id)
+      if (info) {
+          return {
+              ...edge,
+              data: { ...edge.data, points: info.points }
+          }
+      }
+      return edge
+  })
+
+  return { nodes: positionedNodes, edges: routedEdges }
 }

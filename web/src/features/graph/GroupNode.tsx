@@ -1,51 +1,38 @@
+import React from 'react'
 import { Handle, Position, type NodeProps } from 'reactflow'
-
-import { formatNumber } from '../utils/format'
 import type { GraphNodeData } from './types'
 
 export function GroupNode({ data }: NodeProps<GraphNodeData>) {
-  const params = data.parameters?.total?.count
-  const buffers = data.buffers?.total?.count
-  const badge =
-    data.tags && data.tags.length > 0
-      ? data.tags[0]
-      : data.kind ?? 'container'
-
   return (
     <div
-      className="relative h-full w-full rounded-[28px] border-2 border-dashed border-slate-300/80 bg-transparent shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)]"
+      className="group relative h-full w-full rounded-lg border border-dashed border-border bg-black/5 dark:bg-white/2 transition-colors hover:border-text-muted hover:bg-black/5 dark:hover:bg-white/5"
       data-testid="group-node"
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        isConnectable={false}
-        className="opacity-0"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        isConnectable={false}
-        className="opacity-0"
-      />
-      <div className="absolute left-9 right-9 top-4 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="truncate font-display text-xs text-slate-900">
-              {data.label}
-            </div>
-            <div className="truncate text-[10px] text-slate-500">
-              {data.className ?? 'Module'}
-            </div>
+      {/* Handles */}
+      {[Position.Top, Position.Bottom, Position.Left, Position.Right].map((pos) => (
+        <React.Fragment key={pos}>
+            <Handle
+                id={`target-${pos}`}
+                type="target"
+                position={pos}
+                isConnectable={false}
+                className="opacity-0"
+             />
+             <Handle
+                id={`source-${pos}`}
+                type="source"
+                position={pos}
+                isConnectable={false}
+                className="opacity-0"
+             />
+        </React.Fragment>
+      ))}
+
+      {/* Label */}
+      <div className="absolute -top-3 left-2 px-1 bg-screen">
+          <div className="text-[10px] font-mono font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2">
+            {data.label}
           </div>
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-600">
-            {badge}
-          </span>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
-          <span>Params: {formatNumber(params)}</span>
-          <span>Buffers: {formatNumber(buffers)}</span>
-        </div>
       </div>
     </div>
   )
