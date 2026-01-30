@@ -1,288 +1,146 @@
-import { Button, Checkbox, Input, Spinner } from '@heroui/react'
-import { useMemo, useRef } from 'react'
-import { useVirtualizer } from '@tanstack/react-virtual'
-import { useTranslation } from 'react-i18next'
-
-import { useModelIndex } from '../../data'
+import { useState } from 'react'
+import {
+  Search,
+  Filter,
+  Cpu,
+  Database,
+  Box,
+  MoreHorizontal
+} from 'lucide-react'
+import { Button } from '@heroui/react'
+import { useModelIndex } from '../../data/queries'
 import { useExplorerStore } from './store'
-
-const normalizeText = (value: string) => value.toLowerCase().trim()
+import { formatNumber } from '../utils/format'
+import {
+    Dropdown,
+    DropdownTrigger,
+    DropdownMenu,
+    DropdownItem
+  } from "@heroui/react"
 
 export function ModelSidebar() {
-  const { t } = useTranslation()
-  const { data, isLoading, error } = useModelIndex()
-  const {
-    selectedModelId,
-    setSelectedModelId,
-    search,
-    setSearch,
-    sortBy,
-    setSortBy,
-    modelTypeFilter,
-    setModelTypeFilter,
-    mappingFilter,
-    setMappingFilter,
-    showFilters,
-    setShowFilters,
-  } = useExplorerStore()
-
-  const parentRef = useRef<HTMLDivElement | null>(null)
-
-  const modelTypes = useMemo(() => {
-    if (!data?.models) return []
-    const types = new Set<string>()
-    data.models.forEach((model) => {
-      if (model.model_type) {
-        types.add(model.model_type)
-      }
-    })
-    return Array.from(types).sort()
-  }, [data])
-
-  const mappingOptions = useMemo(() => {
-    if (!data?.models) return []
-    const counts = new Map<string, number>()
-    data.models.forEach((model) => {
-      model.mapping_names?.forEach((name) => {
-        counts.set(name, (counts.get(name) ?? 0) + 1)
-      })
-    })
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([name]) => name)
-  }, [data])
-
-  const filtered = useMemo(() => {
-    if (!data?.models) return []
-    const query = normalizeText(search)
-    const matchesSearch = (value: string) =>
-      normalizeText(value).includes(query)
-    return data.models
-      .filter((model) => {
-        if (!query) return true
-        return (
-          matchesSearch(model.safe_id) ||
-          matchesSearch(model.id) ||
-          (model.model_type ? matchesSearch(model.model_type) : false) ||
-          (model.mapping_names
-            ? model.mapping_names.some((name) => matchesSearch(name))
-            : false)
-        )
-      })
-      .filter((model) => {
-        if (modelTypeFilter.length === 0) return true
-        return model.model_type ? modelTypeFilter.includes(model.model_type) : false
-      })
-      .filter((model) => {
-        if (mappingFilter.length === 0) return true
-        return model.mapping_names
-          ? model.mapping_names.some((name) => mappingFilter.includes(name))
-          : false
-      })
-      .sort((a, b) => {
-        if (sortBy === 'name') {
-          return a.safe_id.localeCompare(b.safe_id)
-        }
-        if (sortBy === 'modules') {
-          return (b.module_count ?? 0) - (a.module_count ?? 0)
-        }
-        return (b.parameter_count ?? 0) - (a.parameter_count ?? 0)
-      })
-  }, [data, search, sortBy, modelTypeFilter, mappingFilter])
-
-  const rowVirtualizer = useVirtualizer({
-    count: filtered.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 48,
-    overscan: 10,
-  })
+  const { data: index, isLoading } = useModelIndex()
+  const { selectedModelId, setSelectedModelId } = useExplorerStore()
+  const [search, setSearch] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  
+  // Simple filtering
+  const models = index?.models ?? []
+  const filteredModels = models.filter(m => 
+    m.id.toLowerCase().includes(search.toLowerCase()) || 
+    m.safe_id.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="font-display text-sm font-semibold text-slate-900">
-            {t('sidebar.title')}
-          </div>
-          <div className="text-[11px] text-slate-500">
-            {t('sidebar.subtitle')}
-          </div>
-        </div>
-        <Button
-          size="sm"
-          variant="flat"
-          className="text-[11px]"
-          onPress={() => setShowFilters(!showFilters)}
-        >
-          {showFilters ? t('sidebar.hideFilters') : t('sidebar.showFilters')}
-        </Button>
-      </div>
-
-      <Input
-        size="sm"
-        placeholder={t('sidebar.searchPlaceholder')}
-        value={search}
-        onValueChange={setSearch}
-        data-testid="model-search"
-        classNames={{
-          inputWrapper: 'border border-slate-200 bg-white/90',
-        }}
-      />
-
-      {showFilters ? (
-        <div className="max-h-[40vh] space-y-3 overflow-auto rounded-2xl border border-slate-200 bg-white/90 p-3 pr-2 text-xs">
-          <div>
-            <div className="mb-2 font-medium text-slate-700">
-              {t('sidebar.sort')}
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {(['parameters', 'modules', 'name'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={[
-                    'rounded-full border px-2 py-1 text-[11px]',
-                    sortBy === mode
-                      ? 'border-teal-300 bg-teal-50 text-teal-700'
-                      : 'border-slate-200 text-slate-500',
-                  ].join(' ')}
-                  onClick={() => setSortBy(mode)}
-                >
-                  {t(`sidebar.sort.${mode}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="mb-2 font-medium text-slate-700">
-              {t('sidebar.modelType')}
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {modelTypes.slice(0, 8).map((type) => (
-                <Checkbox
-                  key={type}
-                  isSelected={modelTypeFilter.includes(type)}
-                  onValueChange={() => {
-                    setModelTypeFilter(
-                      modelTypeFilter.includes(type)
-                        ? modelTypeFilter.filter((value) => value !== type)
-                        : [...modelTypeFilter, type],
-                    )
-                  }}
-                >
-                  <span className="text-[11px] text-slate-600">{type}</span>
-                </Checkbox>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="mb-2 font-medium text-slate-700">
-              {t('sidebar.mapping')}
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {mappingOptions.map((name) => (
-                <Checkbox
-                  key={name}
-                  isSelected={mappingFilter.includes(name)}
-                  onValueChange={() => {
-                    setMappingFilter(
-                      mappingFilter.includes(name)
-                        ? mappingFilter.filter((value) => value !== name)
-                        : [...mappingFilter, name],
-                    )
-                  }}
-                >
-                  <span className="text-[11px] text-slate-600">{name}</span>
-                </Checkbox>
-              ))}
-            </div>
-          </div>
-          <Button
-            size="sm"
-            variant="flat"
-            onPress={() => {
-              setModelTypeFilter([])
-              setMappingFilter([])
-              setSearch('')
-              setSortBy('parameters')
-            }}
-          >
-            {t('sidebar.clear')}
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="flex items-center justify-between text-[11px] text-slate-500">
-        <span>{t('sidebar.count', { count: filtered.length })}</span>
-        <span>{t('sidebar.total', { count: data?.count ?? 0 })}</span>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col">
-        {isLoading ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Spinner size="sm" />
-          </div>
-        ) : error ? (
-          <div className="text-xs text-rose-600">{t('status.error')}</div>
-        ) : (
-          <div
-            ref={parentRef}
-            className="relative min-h-0 flex-1 overflow-auto pr-2"
-          >
-            {filtered.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-xs text-slate-500">
-                {t('sidebar.empty')}
+    <div className="h-full w-72 flex flex-col border-r border-border bg-panel-bg">
+      {/* Header */}
+      <div className="flex flex-col gap-4 p-4 border-b border-border bg-panel-bg">
+         <div className="flex items-center justify-between">
+               <h1 className="font-semibold text-sm text-text-main tracking-wide uppercase">Data Deck</h1>
+               <span className="text-[10px] font-mono text-brand-primary px-1.5 py-0.5 bg-brand-primary/10 rounded">ONLINE</span>
+         </div>
+         
+         {/* Search */}
+         <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="text-text-muted group-focus-within:text-brand-primary transition-colors" size={14} />
               </div>
-            ) : (
-              <div
-                style={{
-                  height: `${rowVirtualizer.getTotalSize()}px`,
-                  position: 'relative',
-                }}
-              >
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const model = filtered[virtualRow.index]
-                  const isActive = model?.id === selectedModelId
-                  if (!model) return null
-                  return (
-                    <div
-                      key={model.id}
-                      className="absolute left-0 top-0 w-full"
-                      style={{
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
-                    >
-                      <div className="border-b border-slate-100">
-                        <button
-                          type="button"
-                          data-testid="model-item"
-                          data-model-id={model.id}
-                          className={[
-                            'w-full px-2 py-2.5 text-left transition hover:bg-slate-50',
-                            isActive ? 'bg-teal-50' : '',
-                          ].join(' ')}
-                          onClick={() => setSelectedModelId(model.id)}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate font-display text-sm font-medium text-slate-900">
+              <input
+               type="text"
+               value={search}
+               onChange={(e) => setSearch(e.target.value)}
+               placeholder="Search models..."
+               className="block w-full rounded-md bg-bg border border-border py-1.5 pl-9 pr-3 text-xs text-text-main placeholder:text-text-muted focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all font-mono"
+              />
+              <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
+               <Button isIconOnly size="sm" variant="light" className="h-6 w-6 min-w-0 text-text-muted hover:text-text-main" onPress={() => setShowFilters(!showFilters)}>
+                 <Filter size={12} />
+               </Button>
+              </div>
+         </div>
+         
+         {/* Filters (Mock) */}
+         {showFilters && (
+             <div className="flex items-center gap-2 pb-1 animate-in fade-in slide-in-from-top-1">
+               <span className="text-[10px] font-mono text-text-muted uppercase">SORT_BY:</span>
+               <select className="bg-bg border border-border text-[10px] rounded px-2 py-0.5 text-text-main">
+                   <option>Recently Added</option>
+                   <option>Name</option>
+                   <option>Size</option>
+               </select>
+             </div>
+         )}
+      </div>
+
+      {/* Model List */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+          {isLoading ? (
+              <div className="p-4 text-center text-xs text-text-muted animate-pulse">Loading models...</div>
+          ) : filteredModels?.map((model) => {
+              const isSelected = selectedModelId === model.id
+              return (
+                  <div
+                    key={model.id}
+                    onClick={() => setSelectedModelId(model.id)}
+                    className={`
+                        group relative rounded-md border p-3 cursor-pointer transition-all duration-200
+                        ${isSelected 
+                           ? 'bg-brand-primary/5 border-brand-primary/30 shadow-sm' 
+                           : 'bg-panel-bg border-border hover:border-text-muted/50 hover:bg-black/5 dark:hover:bg-white/5'
+                        }
+                    `}
+                  >
+                     {/* Active Indicator */}
+                     {isSelected && (
+                         <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-brand-primary rounded-r-full" />
+                     )}
+                     
+                     <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            <Box size={14} className={isSelected ? 'text-brand-primary' : 'text-text-muted'} />
+                            <span className={`font-semibold text-xs truncate pr-2 font-mono ${isSelected ? 'text-text-main' : 'text-text-muted group-hover:text-text-main'}`}>
                                 {model.safe_id}
-                              </div>
-                              <div className="mt-0.5 truncate text-[11px] text-slate-500">
-                                {model.model_type ?? 'unknown'}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                            </span>
+                        </div>
+                        <Dropdown>
+                          <DropdownTrigger>
+                            <Button isIconOnly size="sm" variant="light" className="h-4 w-4 min-w-0 -mr-1 text-text-muted opacity-0 group-hover:opacity-100 data-[hover=true]:opacity-100">
+                                <MoreHorizontal size={14} />
+                            </Button>
+                          </DropdownTrigger>
+                          <DropdownMenu aria-label="Model actions">
+                            <DropdownItem key="view">View Details</DropdownItem>
+                            <DropdownItem key="export">Export Config</DropdownItem>
+                          </DropdownMenu>
+                        </Dropdown>
+                     </div>
+
+                     <div className="flex items-center gap-4 text-[10px] font-mono">
+                           <div className={`flex items-center gap-1.5 ${isSelected ? 'text-text-main' : 'text-text-muted'}`}>
+                               <Database size={12} />
+                               <span>{formatNumber(model.parameter_count ?? 0)}</span>
+                           </div>
+                           <div className={`flex items-center gap-1.5 ${isSelected ? 'text-text-main' : 'text-text-muted'}`}>
+                               <Cpu size={12} />
+                               <span>{model.module_count ?? '-'}</span>
+                           </div>
+                     </div>
+                  </div>
+              )
+          })}
+          
+          {filteredModels?.length === 0 && (
+           <div className="flex flex-col items-center justify-center p-8 text-center text-text-muted font-mono">
+               <Box size={24} className="mb-2 opacity-50" />
+               <div className="text-xs">No models found</div>
+           </div>
+          )}
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-border bg-panel-bg px-4 py-2 text-[9px] font-mono text-text-muted flex justify-between uppercase">
+          <span>v2.0.0-pro</span>
+          <span>Transunformers</span>
       </div>
     </div>
   )

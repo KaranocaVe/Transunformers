@@ -9,6 +9,7 @@ export type ModelIndexEntry = {
   module_count?: number | null
   parameter_count?: number | null
   buffer_count?: number | null
+  tags?: string[] | null
   [key: string]: unknown
 }
 
@@ -57,10 +58,12 @@ export type ModelManifest = {
   runtime?: Record<string, unknown>
   model: ModelSummary
   modules?: { module_count?: number; [key: string]: unknown }
-  trace?: Record<string, unknown>
+
   chunks?: ChunkManifest
   [key: string]: unknown
 }
+
+
 
 export type ModelChunkKey = string
 export type ModelChunkData = Record<string, unknown> | unknown[] | unknown
