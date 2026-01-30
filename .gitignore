@@ -7,6 +7,9 @@ Thumbs.db
 .vscode/
 *.swp
 *~
+.direnv/
+.python-version
+.tool-versions
 
 # Environment files
 .env
@@ -61,6 +64,13 @@ pnpm-debug.log*
 .turbo/
 .next/
 out/
+coverage/
+test-results/
+playwright-report/
+.wrangler/
+*.tsbuildinfo
+
 
 # Project outputs
 /data/models/
+/web/public/data/
