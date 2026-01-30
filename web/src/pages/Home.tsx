@@ -38,7 +38,7 @@ export default function Home() {
     <section className="flex h-full min-h-0 flex-col gap-4">
       <div
         ref={containerRef}
-        className="flex w-full flex-1 min-h-0 gap-3"
+        className="flex w-full flex-1 min-h-0 gap-0"
       >
         <aside
           className="panel-surface flex h-full min-h-0 flex-col rounded-3xl p-4"
@@ -47,13 +47,13 @@ export default function Home() {
           <ModelSidebar />
         </aside>
         <div
-          className="w-2 cursor-col-resize rounded-full bg-slate-200/70"
+          className="w-1 cursor-col-resize bg-transparent hover:bg-neon-purple/50 transition-colors z-10"
           onPointerDown={(event) => {
             event.preventDefault()
             setDragging(true)
           }}
         />
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 relative h-full w-full min-w-0">
           <ModelWorkspace />
         </div>
       </div>
