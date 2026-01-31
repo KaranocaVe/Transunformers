@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Search,
   Filter,
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@heroui/react'
 import { useModelIndex } from '../../data/queries'
-import { useExplorerStore } from './store'
+import { useExplorerStore, type SortMode } from './store'
 import { formatNumber } from '../utils/format'
 import {
     Dropdown,
@@ -20,16 +20,38 @@ import {
 
 export function ModelSidebar() {
   const { data: index, isLoading } = useModelIndex()
-  const { selectedModelId, setSelectedModelId } = useExplorerStore()
+  const { selectedModelId, setSelectedModelId, sortBy, setSortBy } = useExplorerStore()
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   
   // Simple filtering
   const models = index?.models ?? []
-  const filteredModels = models.filter(m => 
-    m.id.toLowerCase().includes(search.toLowerCase()) || 
-    m.safe_id.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredModels = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+    const base = normalizedSearch
+      ? models.filter((model) =>
+          model.id.toLowerCase().includes(normalizedSearch) ||
+          model.safe_id.toLowerCase().includes(normalizedSearch),
+        )
+      : models
+
+    const nameFor = (model: typeof models[number]) => model.safe_id ?? model.id
+
+    return [...base].sort((a, b) => {
+      if (sortBy === 'name') {
+        return nameFor(a).localeCompare(nameFor(b))
+      }
+
+      const valA = sortBy === 'modules' ? (a.module_count ?? 0) : (a.parameter_count ?? 0)
+      const valB = sortBy === 'modules' ? (b.module_count ?? 0) : (b.parameter_count ?? 0)
+
+      if (valA === valB) {
+        return nameFor(a).localeCompare(nameFor(b))
+      }
+
+      return valB - valA
+    })
+  }, [models, search, sortBy])
 
   return (
     <div className="h-full w-full flex flex-col border-r border-border bg-panel-bg">
@@ -63,10 +85,14 @@ export function ModelSidebar() {
          {showFilters && (
              <div className="flex items-center gap-2 pb-1 animate-in fade-in slide-in-from-top-1">
                <span className="text-[10px] font-mono text-text-muted uppercase">SORT_BY:</span>
-               <select className="bg-bg border border-border text-[10px] rounded px-2 py-0.5 text-text-main">
-                   <option>Recently Added</option>
-                   <option>Name</option>
-                   <option>Size</option>
+               <select
+                 className="bg-bg border border-border text-[10px] rounded px-2 py-0.5 text-text-main"
+                 value={sortBy}
+                 onChange={(event) => setSortBy(event.target.value as SortMode)}
+               >
+                   <option value="parameters">Parameters</option>
+                   <option value="modules">Modules</option>
+                   <option value="name">Name</option>
                </select>
              </div>
          )}
