@@ -41,7 +41,7 @@ export default function Home() {
         className="flex w-full flex-1 min-h-0 gap-0"
       >
         <aside
-          className="panel-surface flex h-full min-h-0 flex-col rounded-3xl p-4"
+          className="flex h-full min-h-0 flex-col shrink-0 overflow-hidden"
           style={{ width: sidebarWidth }}
         >
           <ModelSidebar />

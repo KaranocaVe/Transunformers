@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from '@tanstack/react-router'
 import { 
   Network, 
@@ -73,7 +72,7 @@ function InnerApp() {
                icon={Layers} 
                label="Layers" 
                active={currentPath === '/layers'} 
-               onClick={() => alert("Layers view coming soon!")} 
+               onClick={() => navigate({ to: '/layers' })} 
              />
          </div>
 
@@ -90,7 +89,7 @@ function InnerApp() {
              <ThemeToggle />
              <SidebarItem 
                icon={Settings} 
-               onClick={() => alert("Settings panel coming soon!")} 
+               onClick={() => navigate({ to: '/settings' })} 
              />
          </div>
       </aside>

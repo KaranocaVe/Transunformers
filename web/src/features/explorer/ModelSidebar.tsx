@@ -32,7 +32,7 @@ export function ModelSidebar() {
   )
 
   return (
-    <div className="h-full w-72 flex flex-col border-r border-border bg-panel-bg">
+    <div className="h-full w-full flex flex-col border-r border-border bg-panel-bg">
       {/* Header */}
       <div className="flex flex-col gap-4 p-4 border-b border-border bg-panel-bg">
          <div className="flex items-center justify-between">
@@ -83,7 +83,7 @@ export function ModelSidebar() {
                     key={model.id}
                     onClick={() => setSelectedModelId(model.id)}
                     className={`
-                        group relative rounded-md border p-3 cursor-pointer transition-all duration-200
+                        group relative rounded-md border p-2 cursor-pointer transition-all duration-200
                         ${isSelected 
                            ? 'bg-brand-primary/5 border-brand-primary/30 shadow-sm' 
                            : 'bg-panel-bg border-border hover:border-text-muted/50 hover:bg-black/5 dark:hover:bg-white/5'
@@ -95,7 +95,7 @@ export function ModelSidebar() {
                          <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-brand-primary rounded-r-full" />
                      )}
                      
-                     <div className="flex items-start justify-between mb-2">
+                     <div className="flex items-start justify-between mb-1">
                         <div className="flex items-center gap-2 overflow-hidden">
                             <Box size={14} className={isSelected ? 'text-brand-primary' : 'text-text-muted'} />
                             <span className={`font-semibold text-xs truncate pr-2 font-mono ${isSelected ? 'text-text-main' : 'text-text-muted group-hover:text-text-main'}`}>
