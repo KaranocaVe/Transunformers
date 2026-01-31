@@ -4,6 +4,9 @@ const resolveDevFsBase = () => {
   if (!import.meta.env.DEV) {
     return null
   }
+  if (import.meta.env.VITE_DATA_USE_FS !== 'true') {
+    return null
+  }
   if (typeof __DATA_FS_ROOT__ !== 'string' || __DATA_FS_ROOT__.length === 0) {
     return null
   }

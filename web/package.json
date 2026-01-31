@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "npm run sync:data && vite",
+    "sync:data": "node scripts/sync-data.mjs",
+    "build": "npm run sync:data && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
