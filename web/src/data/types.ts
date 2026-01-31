@@ -34,6 +34,7 @@ export type ChunkManifest = {
 }
 
 export type ModelSummary = {
+  safe_id?: string
   class?: string | null
   config_class?: string | null
   model_type?: string | null
