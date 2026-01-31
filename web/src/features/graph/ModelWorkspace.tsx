@@ -90,7 +90,7 @@ function GraphCanvas({
         onNodeClick={(_, node) => onNodeClick(node.data)}
         onNodeDoubleClick={(_, node) => onNodeDoubleClick(node.data)}
         onPaneClick={onClearSelection}
-        onMoveEnd={(e, viewport) => !ignoreNextMoveRef.current && commitZoom(viewport.zoom)}
+        onMoveEnd={(_, viewport) => !ignoreNextMoveRef.current && commitZoom(viewport.zoom)}
         onMoveStart={() => { ignoreNextMoveRef.current = false }}
         minZoom={0.1}
         maxZoom={4}
@@ -109,27 +109,55 @@ export function ModelWorkspace() {
     setSelectedNodeId,
     selectedNodeId,
     toggleExpanded,
+    layoutDirection,
+    viewMode: preferredViewMode,
   } = useExplorerStore()
 
-  const { data: manifest } = useModelManifest(selectedModelId)
+  const { data: manifest, isLoading: manifestLoading } = useModelManifest(selectedModelId)
+  const isChunked = Boolean(manifest?.chunks?.items?.length)
+
+  const { compactTree, fullTree } = useMemo(() => {
+    const modules = manifest?.modules as Record<string, unknown> | undefined
+    return {
+      compactTree: modules?.compact_tree,
+      fullTree: modules?.tree,
+    }
+  }, [manifest])
   
   const treeChunkKey = useMemo(() => {
-    if (!selectedModelId) return undefined
-    const items = manifest?.chunks?.items
-    if (!items || items.length === 0) return 'modules.compact_tree'
+    if (!selectedModelId || !isChunked) return undefined
+    const items = manifest?.chunks?.items ?? []
     const hasCompact = items.some(item => item.key === 'modules.compact_tree' && item.present)
-    return hasCompact ? 'modules.compact_tree' : 'modules.tree'
-  }, [selectedModelId, manifest])
+    const hasFull = items.some(item => item.key === 'modules.tree' && item.present)
+    if (preferredViewMode === 'compact') {
+      if (hasCompact) return 'modules.compact_tree'
+      if (hasFull) return 'modules.tree'
+    } else {
+      if (hasFull) return 'modules.tree'
+      if (hasCompact) return 'modules.compact_tree'
+    }
+    return undefined
+  }, [selectedModelId, isChunked, manifest, preferredViewMode])
 
-  const fullQuery = useModelChunk(selectedModelId, treeChunkKey)
+  const treeQuery = useModelChunk(selectedModelId, treeChunkKey)
 
   
   // Removed config related logic here
 
-  const viewMode = treeChunkKey === 'modules.compact_tree' ? 'compact' : 'full'
+  const fallbackTreeRaw = useMemo(() => {
+    if (preferredViewMode === 'compact') {
+      return compactTree ?? fullTree
+    }
+    return fullTree ?? compactTree
+  }, [compactTree, fullTree, preferredViewMode])
+
+  const treeRaw = isChunked ? treeQuery.data : fallbackTreeRaw
+  const usingCompactTree = isChunked
+    ? treeChunkKey === 'modules.compact_tree'
+    : Boolean(compactTree && fallbackTreeRaw === compactTree)
+  const viewMode = usingCompactTree ? 'compact' : 'full'
   const autoDepth = 2
 
-  const treeRaw = fullQuery.data
   const treeRoot = useMemo(() => {
     if (!treeRaw || typeof treeRaw !== 'object') return null
     return normalizeTree(treeRaw as RawNode, {
@@ -168,7 +196,7 @@ export function ModelWorkspace() {
     }
     let active = true
     setTimeout(() => { setLayouting(true) }, 0)
-    layoutGraph(graph.nodes, graph.layoutEdges, graph.layoutRoot)
+    layoutGraph(graph.nodes, graph.layoutEdges, graph.layoutRoot, { direction: layoutDirection })
       .then(({ nodes: nextNodes, edges: nextEdges }) => {
         if (!active) return
         setLayoutedNodes(nextNodes)
@@ -176,7 +204,7 @@ export function ModelWorkspace() {
       })
       .finally(() => { if (active) setLayouting(false) })
     return () => { active = false }
-  }, [graph])
+  }, [graph, layoutDirection])
 
   const selectedNode = selectedNodeId ? graph?.nodeMap.get(selectedNodeId) : undefined
   const renderNodes = useMemo(() => layoutedNodes.map(n => ({ ...n, selected: n.id === selectedNodeId })), [layoutedNodes, selectedNodeId])
@@ -186,6 +214,20 @@ export function ModelWorkspace() {
       setSelectedNodeId(undefined)
     }
   }, [graph, selectedNodeId, setSelectedNodeId])
+
+  if (selectedModelId && isChunked && treeQuery.error) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-bg text-center" data-testid="workspace-error">
+        <div className="max-w-md space-y-2">
+          <h3 className="text-text-main font-medium text-sm">Failed to load model graph</h3>
+          <p className="text-xs text-text-muted">{String(treeQuery.error)}</p>
+          <p className="text-[10px] font-mono text-text-dim">
+            Chunk: {treeChunkKey ?? 'unknown'}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (!selectedModelId) {
     return (
@@ -231,7 +273,7 @@ export function ModelWorkspace() {
             <GraphCanvas
               nodes={renderNodes}
               edges={layoutedEdges}
-              loading={layouting || fullQuery.isLoading}
+              loading={layouting || manifestLoading || treeQuery.isLoading}
               onNodeClick={(node) => {
                 if (node.hasChildren && node.kind !== 'collapsed') return
                 setSelectedNodeId(node.id)

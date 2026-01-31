@@ -46,7 +46,6 @@ type ElkGraphNode = {
   x?: number
   y?: number
   children?: ElkGraphNode[]
-  children?: ElkGraphNode[]
   layoutOptions?: Record<string, string>
   edges?: ElkGraphEdge[]
 }
@@ -189,10 +188,13 @@ export const layoutGraph = async <T>(
   nodes: Node<T>[],
   edges: Edge[],
   root: TreeNode | null,
+  options?: { direction?: 'DOWN' | 'RIGHT' }
 ): Promise<{ nodes: Node<T>[]; edges: Edge[] }> => {
   if (!root) {
     return { nodes, edges }
   }
+
+  const direction = options?.direction ?? 'DOWN'
 
   const sizeById = new Map(
     nodes.map((node) => [
@@ -220,7 +222,7 @@ export const layoutGraph = async <T>(
     layoutOptions: {
       ...(rootNode.layoutOptions ?? {}),
       ...ROOT_LAYOUT_OPTIONS,
-      'elk.direction': 'DOWN',
+      'elk.direction': direction,
     },
     edges: layoutEdges.map((edge) => ({
       id: edge.id,
