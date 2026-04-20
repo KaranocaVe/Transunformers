@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 
 import App from './App'
+import OverviewPage from './features/overview/OverviewPage'
 import Home from './pages/Home'
 
 import LayersPage from './features/layers/LayersPage'
@@ -16,6 +17,18 @@ const indexRoute = createRoute({
   component: Home,
 })
 
+const graphRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/graph',
+  component: Home,
+})
+
+const overviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/overview',
+  component: OverviewPage,
+})
+
 const layersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/layers',
@@ -28,7 +41,7 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, layersRoute, settingsRoute])
+const routeTree = rootRoute.addChildren([indexRoute, graphRoute, overviewRoute, layersRoute, settingsRoute])
 
 export const router = createRouter({ routeTree })
 
