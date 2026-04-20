@@ -1,7 +1,10 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Handle, Position, type NodeProps } from 'reactflow'
 import { formatNumber } from '../utils/format'
+import { useExplorerStore } from '../explorer/store'
 import type { GraphNodeData } from './types'
+import { branchLabelMap, getNodeTone, roleLabelMap } from './visuals'
 
 // Helper to get a clean badge label
 const resolveBadge = (data: GraphNodeData) => {
@@ -12,10 +15,19 @@ const resolveBadge = (data: GraphNodeData) => {
 
 
 export function ModuleNode({ data, selected }: NodeProps<GraphNodeData>) {
+  const { t } = useTranslation()
+  const graphColorMode = useExplorerStore((state) => state.graphColorMode)
   const params = data.parameters?.total?.count
   const buffers = data.buffers?.total?.count
   const badge = resolveBadge(data)
   const isCollapsed = data.kind === 'collapsed'
+  const tone = getNodeTone(data, graphColorMode)
+  const roleLabel = data.role ? t(roleLabelMap[data.role]) : null
+  const branchLabel = data.branchHint ? t(branchLabelMap[data.branchHint]) : null
+  const trainablePercent =
+    data.trainableRatio !== null && data.trainableRatio !== undefined
+      ? Math.round(data.trainableRatio * 100)
+      : null
   
   return (
     <div
@@ -33,7 +45,7 @@ export function ModuleNode({ data, selected }: NodeProps<GraphNodeData>) {
         relative h-full w-full overflow-hidden rounded-md border text-xs transition-all duration-200
         ${selected 
           ? 'bg-panel-bg border-brand-primary ring-1 ring-brand-primary shadow-lg' 
-          : 'bg-panel-bg border-border hover:border-brand-primary/50'
+          : `bg-panel-bg ${tone.frame} hover:border-brand-primary/50`
         }
         ${isCollapsed ? 'opacity-90' : ''}
       `}
@@ -65,14 +77,39 @@ export function ModuleNode({ data, selected }: NodeProps<GraphNodeData>) {
       
       <div className="flex flex-col">
         {/* Header */}
-        <div className={`px-3 py-2 border-b ${selected ? 'border-brand-primary/20 bg-brand-primary/5' : 'border-border bg-black/5 dark:bg-white/5'}`}>
-          <div className="flex items-center justify-between gap-2 mb-0.5">
-             <span className="font-mono text-[10px] uppercase tracking-wider text-text-dim">{badge}</span>
-             {isCollapsed && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
-          </div>
-          <div className="font-semibold text-sm text-text-main truncate" title={data.label}>
-             {data.label}
-          </div>
+        <div className={`px-3 py-2 border-b ${selected ? 'border-brand-primary/20 bg-brand-primary/5' : `${tone.header} border-border`}`}>
+          <div className="mb-1 flex items-center justify-between gap-2">
+             <div className="flex items-center gap-1.5 overflow-hidden">
+               <span className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${tone.badge}`}>{badge}</span>
+               {roleLabel && <span className={`truncate text-[10px] font-medium ${tone.text}`}>{roleLabel}</span>}
+             </div>
+              {isCollapsed && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
+           </div>
+           <div className="font-semibold text-sm text-text-main truncate" title={data.label}>
+              {data.label}
+           </div>
+           <div className="mt-1 flex flex-wrap gap-1.5">
+             {branchLabel ? (
+               <span className="rounded-full bg-border/40 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
+                 {branchLabel}
+               </span>
+             ) : null}
+              {data.parameterScale && params ? (
+                <span className="rounded-full bg-bg px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
+                  P {data.parameterScale}
+                </span>
+             ) : null}
+             {data.bufferScale && data.bufferScale !== 'none' ? (
+               <span className="rounded-full bg-bg px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
+                 B {data.bufferScale}
+               </span>
+             ) : null}
+             {trainablePercent !== null ? (
+               <span className="rounded-full bg-bg px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
+                 T {trainablePercent}%
+               </span>
+             ) : null}
+           </div>
         </div>
 
         {/* Body */}
@@ -84,13 +121,21 @@ export function ModuleNode({ data, selected }: NodeProps<GraphNodeData>) {
            )}
            
            {(params || buffers) && (
-             <div className="flex items-center gap-3 pt-1 text-[11px] font-mono text-text-dim">
-                {params ? <span>{formatNumber(params)} P</span> : null}
-                {buffers ? <span>{formatNumber(buffers)} B</span> : null}
-             </div>
-           )}
-        </div>
-      </div>
-    </div>
+              <div className="flex items-center gap-3 pt-1 text-[11px] font-mono text-text-dim">
+                 {params ? <span>{formatNumber(params)} P</span> : null}
+                 {buffers ? <span>{formatNumber(buffers)} B</span> : null}
+              </div>
+            )}
+
+            {data.summaryLines && data.summaryLines.length > 0 ? (
+              <div className="space-y-0.5 pt-1 text-[10px] text-text-muted">
+                {data.summaryLines.map((line) => (
+                  <div key={line}>{line}</div>
+                ))}
+              </div>
+            ) : null}
+         </div>
+       </div>
+     </div>
   )
 }
