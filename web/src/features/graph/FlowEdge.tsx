@@ -139,6 +139,16 @@ export function FlowEdge({
   markerEnd,
   data,
 }: EdgeProps<FlowEdgeData>) {
+  const branchStyle =
+    data?.branchHint === 'parallel'
+      ? { stroke: '#8b5cf6', strokeWidth: 1.9, strokeDasharray: '8 4' }
+      : data?.branchHint === 'bridge'
+        ? { stroke: '#f59e0b', strokeWidth: 2.2, strokeDasharray: '4 3' }
+        : { stroke: '#6366f1', strokeWidth: 1.7 }
+  const resolvedMarkerEnd =
+    markerEnd && typeof markerEnd === 'object' && 'type' in markerEnd
+      ? ({ ...(markerEnd as Record<string, unknown>), color: branchStyle.stroke } as typeof markerEnd)
+      : markerEnd
   const path = buildFlowEdgePath({
     id,
     sourceX,
@@ -159,8 +169,8 @@ export function FlowEdge({
       <BaseEdge
         id={id}
         path={path}
-        style={style}
-        markerEnd={markerEnd}
+        style={{ ...branchStyle, ...style }}
+        markerEnd={resolvedMarkerEnd}
       />
     </g>
   )
