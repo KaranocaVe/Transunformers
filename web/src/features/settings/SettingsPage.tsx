@@ -1,7 +1,7 @@
 import { useExplorerStore } from '../explorer/store'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../../context/ThemeContext'
-import { Moon, Sun, ArrowDown, ArrowRight, LayoutGrid, LayoutList } from 'lucide-react'
+import { Moon, Sun, ArrowDown, ArrowRight, LayoutGrid, LayoutList, SwatchBook, Info } from 'lucide-react'
 import i18n from '../../i18n'
 
 export default function SettingsPage() {
@@ -11,7 +11,11 @@ export default function SettingsPage() {
     layoutDirection, 
     setLayoutDirection,
     viewMode,
-    setViewMode
+    setViewMode,
+    graphColorMode,
+    setGraphColorMode,
+    showGraphLegend,
+    setShowGraphLegend,
   } = useExplorerStore()
 
   return (
@@ -73,6 +77,7 @@ export default function SettingsPage() {
                                 </button>
                             </div>
                         </div>
+
                     </div>
                 </section>
 
@@ -135,6 +140,47 @@ export default function SettingsPage() {
                                     {t('settings.densityCompact')}
                                 </button>
                             </div>
+                        </div>
+
+                        <div className="p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-md bg-bg text-text-main">
+                                    <SwatchBook size={18} />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-text-main">{t('settings.graphColorMode')}</div>
+                                    <div className="text-xs text-text-muted">{t('settings.graphColorModeDescription')}</div>
+                                </div>
+                            </div>
+                            <div className="flex gap-1 bg-bg p-1 rounded-md border border-border">
+                                {(['role', 'parameters', 'trainable'] as const).map((mode) => (
+                                    <button
+                                        key={mode}
+                                        onClick={() => setGraphColorMode(mode)}
+                                        className={`px-3 py-1 rounded text-[10px] font-medium transition-colors ${graphColorMode === mode ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-main'}`}
+                                    >
+                                        {mode === 'role' ? t('settings.graphColorRole') : mode === 'parameters' ? t('settings.graphColorParams') : t('settings.graphColorTrainable')}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-md bg-bg text-text-main">
+                                    <Info size={18} />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-text-main">{t('settings.legendPanel')}</div>
+                                    <div className="text-xs text-text-muted">{t('settings.legendPanelDescription')}</div>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setShowGraphLegend(!showGraphLegend)}
+                                className="px-3 py-1.5 rounded text-xs font-medium bg-border/20 hover:bg-border/40 text-text-main transition-colors"
+                            >
+                                {showGraphLegend ? t('settings.legendHide') : t('settings.legendShow')}
+                            </button>
                         </div>
                     </div>
                 </section>
