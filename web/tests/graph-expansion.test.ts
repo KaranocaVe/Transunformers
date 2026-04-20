@@ -138,6 +138,49 @@ test('collapsed stack nodes switch from module cards to container groups when ex
   )
 })
 
+test('buildGraph derives branch hints, summary lines, and edge branch metadata for parallel structures', () => {
+  const tree: RawNode = {
+    name: 'model',
+    path: 'model',
+    children: [
+      {
+        name: 'experts',
+        path: 'model.experts',
+        tags: ['moe'],
+        children: [
+          {
+            name: 'vision_tower',
+            path: 'model.experts.vision_tower',
+            tags: ['vision'],
+            parameters: { total: { count: 1_500_000_000, size_bytes: 0, trainable: 750_000_000 } },
+            children: [],
+          },
+          {
+            name: 'text_tower',
+            path: 'model.experts.text_tower',
+            tags: ['text'],
+            parameters: { total: { count: 800_000_000, size_bytes: 0, trainable: 800_000_000 } },
+            children: [],
+          },
+        ],
+      },
+    ],
+  }
+
+  const graph = buildTestGraph(tree, 'full')
+  const expertsNode = graph.nodeMap.get('model.experts')
+  const firstFlowEdge = graph.edges.find((edge) => edge.id.startsWith('flow:')) as (typeof graph.edges)[number] & {
+    data?: FlowEdgeData
+  }
+
+  assert.ok(expertsNode, 'expected experts group node')
+  assert.equal(expertsNode.branchHint, 'parallel')
+  assert.ok(expertsNode.summaryLines?.some((line) => line.includes('P')))
+  assert.equal(expertsNode.parameterScale, 'large')
+  assert.ok(firstFlowEdge?.data)
+  assert.equal(firstFlowEdge.data?.branchHint, 'parallel')
+})
+
 test('first explicit collapse overrides auto-depth expansion until the model changes', () => {
   const tree: RawNode = {
     name: 'model',
