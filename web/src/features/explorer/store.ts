@@ -3,6 +3,7 @@ import { create } from 'zustand'
 export type ViewMode = 'compact' | 'full'
 export type LayoutDirection = 'DOWN' | 'RIGHT'
 export type SortMode = 'name' | 'parameters' | 'modules'
+export type GraphColorMode = 'role' | 'parameters' | 'trainable'
 
 type ExplorerState = {
   selectedModelId?: string
@@ -17,6 +18,8 @@ type ExplorerState = {
   expandedNodes: Record<string, boolean>
   sidebarWidth: number
   showFilters: boolean
+  graphColorMode: GraphColorMode
+  showGraphLegend: boolean
   setSelectedModelId: (modelId?: string) => void
   setSelectedNodeId: (nodeId?: string) => void
   setViewMode: (mode: ViewMode) => void
@@ -30,6 +33,8 @@ type ExplorerState = {
   clearExpanded: () => void
   setSidebarWidth: (width: number) => void
   setShowFilters: (show: boolean) => void
+  setGraphColorMode: (mode: GraphColorMode) => void
+  setShowGraphLegend: (show: boolean) => void
 }
 
 export const useExplorerStore = create<ExplorerState>((set) => ({
@@ -43,6 +48,8 @@ export const useExplorerStore = create<ExplorerState>((set) => ({
   expandedNodes: {},
   sidebarWidth: 360,
   showFilters: false,
+  graphColorMode: 'role',
+  showGraphLegend: true,
   setSelectedModelId: (modelId) =>
     set((state) => ({
       selectedModelId: modelId,
@@ -69,4 +76,6 @@ export const useExplorerStore = create<ExplorerState>((set) => ({
   clearExpanded: () => set({ expandedNodes: {} }),
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
   setShowFilters: (show) => set({ showFilters: show }),
+  setGraphColorMode: (mode) => set({ graphColorMode: mode }),
+  setShowGraphLegend: (show) => set({ showGraphLegend: show }),
 }))
