@@ -1,8 +1,11 @@
 import { useExplorerStore } from '../explorer/store'
+import { useTranslation } from 'react-i18next'
 import { useTheme } from '../../context/ThemeContext'
 import { Moon, Sun, ArrowDown, ArrowRight, LayoutGrid, LayoutList } from 'lucide-react'
+import i18n from '../../i18n'
 
 export default function SettingsPage() {
+  const { t } = useTranslation()
   const { theme, toggleTheme } = useTheme()
   const { 
     layoutDirection, 
@@ -16,7 +19,7 @@ export default function SettingsPage() {
         {/* Header */}
         <div className="h-12 border-b border-border bg-panel-bg flex items-center px-4 shrink-0">
              <h1 className="font-semibold text-sm text-text-main flex items-center gap-2">
-                 Settings
+                  {t('settings.title')}
              </h1>
         </div>
 
@@ -26,7 +29,7 @@ export default function SettingsPage() {
                 
                 {/* Appearance Section */}
                 <section>
-                    <h2 className="text-sm font-medium text-text-muted mb-4 uppercase tracking-wider">Appearance</h2>
+                    <h2 className="text-sm font-medium text-text-muted mb-4 uppercase tracking-wider">{t('settings.appearance')}</h2>
                     <div className="bg-panel-bg border border-border rounded-lg overflow-hidden divide-y divide-border">
                         <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -34,23 +37,48 @@ export default function SettingsPage() {
                                     {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
                                 </div>
                                 <div>
-                                    <div className="text-sm font-medium text-text-main">Theme Mode</div>
-                                    <div className="text-xs text-text-muted">Switch between light and dark themes</div>
+                                    <div className="text-sm font-medium text-text-main">{t('settings.themeMode')}</div>
+                                    <div className="text-xs text-text-muted">{t('settings.themeDescription')}</div>
                                 </div>
                             </div>
                             <button 
                                 onClick={toggleTheme}
                                 className="px-3 py-1.5 rounded text-xs font-medium bg-border/20 hover:bg-border/40 text-text-main transition-colors"
                             >
-                                {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+                                {theme === 'dark' ? t('settings.switchToLight') : t('settings.switchToDark')}
                             </button>
+                        </div>
+                        <div className="p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-md bg-bg text-text-main font-mono text-xs">
+                                    {i18n.language.startsWith('zh') ? '中' : 'EN'}
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-text-main">{t('settings.language')}</div>
+                                    <div className="text-xs text-text-muted">{t('settings.languageDescription')}</div>
+                                </div>
+                            </div>
+                            <div className="flex gap-1 bg-bg p-1 rounded-md border border-border">
+                                <button
+                                    onClick={() => void i18n.changeLanguage('en')}
+                                    className={`px-3 py-1 rounded text-[10px] font-medium transition-colors ${i18n.language.startsWith('en') ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-main'}`}
+                                >
+                                    EN
+                                </button>
+                                <button
+                                    onClick={() => void i18n.changeLanguage('zh')}
+                                    className={`px-3 py-1 rounded text-[10px] font-medium transition-colors ${i18n.language.startsWith('zh') ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-main'}`}
+                                >
+                                    中文
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </section>
 
                 {/* Graph Section */}
                 <section>
-                    <h2 className="text-sm font-medium text-text-muted mb-4 uppercase tracking-wider">Graph View</h2>
+                    <h2 className="text-sm font-medium text-text-muted mb-4 uppercase tracking-wider">{t('settings.graphView')}</h2>
                     <div className="bg-panel-bg border border-border rounded-lg overflow-hidden divide-y divide-border">
                         
                         {/* Layout Direction */}
@@ -60,22 +88,22 @@ export default function SettingsPage() {
                                     {layoutDirection === 'DOWN' ? <ArrowDown size={18} /> : <ArrowRight size={18} />}
                                 </div>
                                 <div>
-                                    <div className="text-sm font-medium text-text-main">Layout Direction</div>
-                                    <div className="text-xs text-text-muted">Orientation of the node graph</div>
+                                    <div className="text-sm font-medium text-text-main">{t('settings.layoutDirection')}</div>
+                                    <div className="text-xs text-text-muted">{t('settings.layoutDescription')}</div>
                                 </div>
                             </div>
                             <div className="flex gap-1 bg-bg p-1 rounded-md border border-border">
                                 <button
                                     onClick={() => setLayoutDirection('DOWN')}
                                     className={`p-1.5 rounded ${layoutDirection === 'DOWN' ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-main'}`}
-                                    title="Vertical (Top to Bottom)"
+                                    title={t('settings.layoutVertical')}
                                 >
                                     <ArrowDown size={16} />
                                 </button>
                                 <button
                                     onClick={() => setLayoutDirection('RIGHT')}
                                     className={`p-1.5 rounded ${layoutDirection === 'RIGHT' ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-main'}`}
-                                    title="Horizontal (Left to Right)"
+                                    title={t('settings.layoutHorizontal')}
                                 >
                                     <ArrowRight size={16} />
                                 </button>
@@ -89,8 +117,8 @@ export default function SettingsPage() {
                                     {viewMode === 'full' ? <LayoutGrid size={18} /> : <LayoutList size={18} />}
                                 </div>
                                 <div>
-                                    <div className="text-sm font-medium text-text-main">Node Density</div>
-                                    <div className="text-xs text-text-muted">Detail level for graph nodes</div>
+                                    <div className="text-sm font-medium text-text-main">{t('settings.nodeDensity')}</div>
+                                    <div className="text-xs text-text-muted">{t('settings.nodeDensityDescription')}</div>
                                 </div>
                             </div>
                             <div className="flex gap-1 bg-bg p-1 rounded-md border border-border">
@@ -98,13 +126,13 @@ export default function SettingsPage() {
                                     onClick={() => setViewMode('full')}
                                     className={`px-3 py-1 rounded text-[10px] font-medium transition-colors ${viewMode === 'full' ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-main'}`}
                                 >
-                                    Detailed
+                                    {t('settings.densityDetailed')}
                                 </button>
                                 <button
                                     onClick={() => setViewMode('compact')}
                                     className={`px-3 py-1 rounded text-[10px] font-medium transition-colors ${viewMode === 'compact' ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-main'}`}
                                 >
-                                    Compact
+                                    {t('settings.densityCompact')}
                                 </button>
                             </div>
                         </div>
@@ -112,8 +140,8 @@ export default function SettingsPage() {
                 </section>
                 
                 <div className="text-center text-xs text-text-dim pt-8">
-                     Transunformers Web v0.1.0 • Built with precision
-                </div>
+                      {t('settings.footer')}
+                 </div>
 
              </div>
         </div>
