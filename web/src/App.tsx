@@ -1,9 +1,11 @@
 import { Outlet, useNavigate, useLocation } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { 
   Network, 
   Settings, 
   Box, 
   Layers,
+  BarChart3,
   Github,
   Sun,
   Moon
@@ -45,6 +47,7 @@ function ThemeToggle() {
 }
 
 function InnerApp() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   
@@ -63,34 +66,41 @@ function InnerApp() {
          {/* Navigation */}
          <div className="flex flex-col gap-2 w-full px-2">
              <SidebarItem 
-               icon={Network} 
-               label="Graph" 
-               active={currentPath === '/' || currentPath === '/graph'} 
-               onClick={() => navigate({ to: '/' })} 
+               icon={BarChart3} 
+               label={t('nav.overview')} 
+               active={currentPath === '/overview'} 
+               onClick={() => navigate({ to: '/overview' })} 
              />
-             <SidebarItem 
-               icon={Layers} 
-               label="Layers" 
-               active={currentPath === '/layers'} 
-               onClick={() => navigate({ to: '/layers' })} 
-             />
+               <SidebarItem 
+                 icon={Network} 
+                 label={t('nav.graph')} 
+                 active={currentPath === '/' || currentPath === '/graph'} 
+                 onClick={() => navigate({ to: '/graph' })} 
+               />
+              <SidebarItem 
+                icon={Layers} 
+                label={t('nav.layers')} 
+                active={currentPath === '/layers'} 
+                onClick={() => navigate({ to: '/layers' })} 
+              />
          </div>
 
          <div className="mt-auto flex flex-col gap-2 w-full px-2 items-center">
              <a 
                href="https://github.com/KaranocaVe/Transunformers" 
                target="_blank" 
-               rel="noopener noreferrer"
-               className="w-10 h-10 flex items-center justify-center rounded-lg text-text-muted hover:text-text-main hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-               title="GitHub Repository"
-             >
-                <Github size={20} strokeWidth={1.5} />
-             </a>
-             <ThemeToggle />
-             <SidebarItem 
-               icon={Settings} 
-               onClick={() => navigate({ to: '/settings' })} 
-             />
+                rel="noopener noreferrer"
+                className="w-10 h-10 flex items-center justify-center rounded-lg text-text-muted hover:text-text-main hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                title={t('app.repo')}
+              >
+                 <Github size={20} strokeWidth={1.5} />
+              </a>
+              <ThemeToggle />
+              <SidebarItem 
+                icon={Settings} 
+                label={t('nav.settings')}
+                onClick={() => navigate({ to: '/settings' })} 
+              />
          </div>
       </aside>
 
