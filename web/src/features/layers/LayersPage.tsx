@@ -1,17 +1,21 @@
 import { useExplorerStore } from '../explorer/store'
 import { useModelManifest, useModelChunk } from '../../data/queries'
 import { useMemo, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { normalizeTree } from '../graph/tree'
 import type { RawNode } from '../graph/types'
 import { formatNumber } from '../utils/format'
 import { Search, ChevronDown, ChevronUp } from 'lucide-react'
 import { flattenTree } from './utils'
-import { Spinner } from '@heroui/react'
+import { Button, Spinner } from '@heroui/react'
 
 type SortField = 'params' | 'buffers' | 'path'
 type SortOrder = 'asc' | 'desc'
 
 export default function LayersPage() {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
   const { selectedModelId, viewMode: preferredViewMode } = useExplorerStore()
   const { data: manifest, isLoading: isManifestLoading } = useModelManifest(selectedModelId)
   const isChunked = Boolean(manifest?.chunks?.items?.length)
@@ -110,12 +114,17 @@ export default function LayersPage() {
   if (!selectedModelId) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-bg text-center">
-         <div className="max-w-xs space-y-3">
+         <div className="max-w-sm space-y-4">
              <div className="mx-auto h-12 w-12 rounded bg-panel-border/50 flex items-center justify-center text-text-muted">
                <Search size={24} />
              </div>
-             <h3 className="text-text-main font-medium text-sm">No Model Selected</h3>
-             <p className="text-xs text-text-muted">Select a model from the sidebar to view layers.</p>
+              <h3 className="text-text-main font-medium text-sm">{t('layers.emptyTitle')}</h3>
+               <p className="text-xs text-text-muted">{t('layers.empty')}</p>
+              <div className="flex justify-center">
+                <Button size="sm" variant="bordered" onPress={() => navigate({ to: '/overview' })}>
+                  {t('common.openOverview')}
+                </Button>
+              </div>
          </div>
       </div>
     )
@@ -127,15 +136,15 @@ export default function LayersPage() {
         <div className="h-12 border-b border-border bg-panel-bg flex items-center justify-between px-4 shrink-0">
              <h1 className="font-semibold text-sm text-text-main flex items-center gap-2">
                  {manifest?.model.safe_id ?? '...'}
-                 <span className="text-[10px] uppercase font-mono bg-border/50 text-text-muted px-1.5 py-0.5 rounded">Layers</span>
-             </h1>
+                  <span className="text-[10px] uppercase font-mono bg-border/50 text-text-muted px-1.5 py-0.5 rounded">{t('layers.titleBadge')}</span>
+              </h1>
              <div className="relative w-64">
                 <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                     <Search size={12} className="text-text-muted" />
                 </div>
                 <input 
                     type="text" 
-                    placeholder="Filter layers..."
+                    placeholder={t('layers.searchPlaceholder')}
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     className="w-full bg-bg border border-border rounded py-1 pl-7 pr-2 text-xs text-text-main placeholder:text-text-muted focus:border-brand-primary outline-none"
@@ -158,16 +167,16 @@ export default function LayersPage() {
                                     className="px-4 py-3 font-medium cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 select-none transition-colors"
                                     onClick={() => handleSort('path')}
                                 >
-                                    <div className="flex items-center gap-2">Layer Path {renderSortIcon('path')}</div>
-                                </th>
-                                <th className="px-4 py-3 font-medium">Type</th>
+                                    <div className="flex items-center gap-2">{t('layers.columnPath')} {renderSortIcon('path')}</div>
+                                 </th>
+                                 <th className="px-4 py-3 font-medium">{t('layers.columnType')}</th>
                                 <th 
                                     className="px-4 py-3 font-medium text-right cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 select-none transition-colors"
                                     onClick={() => handleSort('params')}
                                 >
-                                    <div className="flex items-center justify-end gap-2">{renderSortIcon('params')} Params</div>
-                                </th>
-                                <th className="px-4 py-3 font-medium text-right">Buffers</th>
+                                    <div className="flex items-center justify-end gap-2">{renderSortIcon('params')} {t('layers.columnParams')}</div>
+                                 </th>
+                                 <th className="px-4 py-3 font-medium text-right">{t('layers.columnBuffers')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border bg-bg">
@@ -178,7 +187,7 @@ export default function LayersPage() {
                                      </td>
                                      <td className="px-4 py-2.5 text-text-muted align-middle">
                                          <span className="bg-brand-primary/10 text-brand-primary px-1.5 py-0.5 rounded-[4px] text-[10px] break-all">
-                                             {layer.className || 'Container'}
+                                              {layer.className || t('common.container')}
                                          </span>
                                      </td>
                                      <td className="px-4 py-2.5 text-text-main text-right align-middle">
@@ -202,8 +211,8 @@ export default function LayersPage() {
                              {layers.length === 0 && (
                                  <tr>
                                      <td colSpan={4} className="px-4 py-8 text-center text-text-muted">
-                                         No layers found matching your filter.
-                                     </td>
+                                          {t('layers.emptyFiltered')}
+                                      </td>
                                  </tr>
                              )}
                         </tbody>

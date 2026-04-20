@@ -1,4 +1,5 @@
 import { Button, Spinner } from '@heroui/react'
+import { useNavigate } from '@tanstack/react-router'
 import { formatNumber } from '../utils/format'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -192,6 +193,7 @@ export const ModelWorkspace = memo(function ModelWorkspace({
 }: {
   containerWidth?: number
 }) {
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const selectedModelId = useExplorerStore((state) => state.selectedModelId)
   const expandedNodes = useExplorerStore((state) => state.expandedNodes)
@@ -454,12 +456,17 @@ export const ModelWorkspace = memo(function ModelWorkspace({
   if (!selectedModelId) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-bg text-center" data-testid="workspace-empty">
-        <div className="max-w-xs space-y-3">
+        <div className="max-w-sm space-y-4">
            <div className="mx-auto h-12 w-12 rounded bg-panel-border/50 flex items-center justify-center text-text-muted">
              <Search size={24} />
            </div>
-           <h3 className="text-text-main font-medium text-sm">No Model Selected</h3>
+           <h3 className="text-text-main font-medium text-sm">{t('workspace.emptyTitle')}</h3>
            <p className="text-xs text-text-muted">{t('workspace.empty')}</p>
+           <div className="flex justify-center">
+             <Button size="sm" variant="bordered" onPress={() => navigate({ to: '/overview' })}>
+               {t('common.openOverview')}
+             </Button>
+           </div>
         </div>
       </div>
     )
@@ -483,8 +490,8 @@ export const ModelWorkspace = memo(function ModelWorkspace({
         <div className="flex items-center gap-3">
            <h1 className="font-semibold text-sm text-text-main flex items-center gap-2" data-testid="workspace-title">
               {manifest?.model.safe_id ?? '...'}
-              <span className="text-[10px] uppercase font-mono bg-border/50 text-text-muted px-1.5 py-0.5 rounded">Graph</span>
-            </h1>
+              <span className="text-[10px] uppercase font-mono bg-border/50 text-text-muted px-1.5 py-0.5 rounded">{t('workspace.titleBadge')}</span>
+             </h1>
         </div>
         
         <div className="flex items-center gap-2">
@@ -493,9 +500,9 @@ export const ModelWorkspace = memo(function ModelWorkspace({
            </Button>
            {manifest && (
             <div className="flex items-center gap-3 text-xs font-mono text-text-muted border-l border-border pl-3 ml-2">
-               <div>{formatNumber(manifest.model.parameters?.count ?? 0)} Params</div>
-            </div>
-           )}
+               <div>{t('workspace.params', { value: formatNumber(manifest.model.parameters?.count ?? 0) })}</div>
+             </div>
+            )}
         </div>
       </div>
 
