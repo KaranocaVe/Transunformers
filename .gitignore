@@ -70,6 +70,13 @@ playwright-report/
 .wrangler/
 *.tsbuildinfo
 
+# Local automation artifacts
+.playwright-mcp/
+.sisyphus/
+/playwright-task*-snapshot.md
+/graph-*.png
+/*-qa.png
+
 
 # Project outputs
 /data/models/
