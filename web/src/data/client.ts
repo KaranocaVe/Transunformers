@@ -12,6 +12,9 @@ import type {
 type ModelIdentifier = string | ModelIndexEntry
 type ManifestCache = Map<string, ModelManifest>
 type ChunkCache = Map<string, Map<ModelChunkKey, ModelChunkData>>
+type ReleaseModelOptions = {
+  includeManifest?: boolean
+}
 
 const parseJson = <T>(text: string, url: string): T => {
   try {
@@ -50,9 +53,44 @@ export class ModelDataClient {
   private indexBySafeId = new Map<string, ModelIndexEntry>()
   private manifestCache: ManifestCache = new Map()
   private chunkCache: ChunkCache = new Map()
+  private cacheEpoch = 0
+  private manifestCacheEpochs = new Map<string, number>()
+  private chunkCacheEpochs = new Map<string, number>()
 
   constructor(baseUrl = resolveDataBaseUrl()) {
     this.baseUrl = baseUrl
+  }
+
+  private getManifestCacheEpoch(modelPath: string) {
+    return this.manifestCacheEpochs.get(modelPath) ?? 0
+  }
+
+  private getChunkCacheEpoch(modelPath: string) {
+    return this.chunkCacheEpochs.get(modelPath) ?? 0
+  }
+
+  private isManifestCacheCurrent(
+    modelPath: string,
+    snapshot: { cacheEpoch: number; manifestEpoch: number },
+    signal?: AbortSignal,
+  ) {
+    return (
+      !signal?.aborted &&
+      this.cacheEpoch === snapshot.cacheEpoch &&
+      this.getManifestCacheEpoch(modelPath) === snapshot.manifestEpoch
+    )
+  }
+
+  private isChunkCacheCurrent(
+    modelPath: string,
+    snapshot: { cacheEpoch: number; chunkEpoch: number },
+    signal?: AbortSignal,
+  ) {
+    return (
+      !signal?.aborted &&
+      this.cacheEpoch === snapshot.cacheEpoch &&
+      this.getChunkCacheEpoch(modelPath) === snapshot.chunkEpoch
+    )
   }
 
   private async fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -99,25 +137,25 @@ export class ModelDataClient {
     }
   }
 
-  private async resolveEntry(identifier: ModelIdentifier) {
+  private async resolveEntry(identifier: ModelIdentifier, signal?: AbortSignal) {
     if (typeof identifier !== 'string') {
       return identifier
     }
     if (isPathLike(identifier)) {
       return null
     }
-    await this.getIndex()
+    await this.getIndex(signal)
     return this.indexById.get(identifier) ?? this.indexBySafeId.get(identifier) ?? null
   }
 
-  private async resolveModelPath(identifier: ModelIdentifier) {
+  private async resolveModelPath(identifier: ModelIdentifier, signal?: AbortSignal) {
     if (typeof identifier !== 'string') {
       return identifier.path
     }
     if (isPathLike(identifier)) {
       return identifier
     }
-    const entry = await this.resolveEntry(identifier)
+    const entry = await this.resolveEntry(identifier, signal)
     if (!entry) {
       throw new Error(`Unknown model identifier: ${identifier}`)
     }
@@ -135,8 +173,8 @@ export class ModelDataClient {
     return index
   }
 
-  async getModelEntry(identifier: ModelIdentifier) {
-    const entry = await this.resolveEntry(identifier)
+  async getModelEntry(identifier: ModelIdentifier, signal?: AbortSignal) {
+    const entry = await this.resolveEntry(identifier, signal)
     if (!entry) {
       if (typeof identifier === 'string' && isPathLike(identifier)) {
         return null
@@ -147,10 +185,14 @@ export class ModelDataClient {
   }
 
   async getManifest(identifier: ModelIdentifier, signal?: AbortSignal) {
-    const modelPath = await this.resolveModelPath(identifier)
+    const modelPath = await this.resolveModelPath(identifier, signal)
     const cached = this.manifestCache.get(modelPath)
     if (cached) {
       return cached
+    }
+    const cacheSnapshot = {
+      cacheEpoch: this.cacheEpoch,
+      manifestEpoch: this.getManifestCacheEpoch(modelPath),
     }
     const url = joinUrl(this.baseUrl, modelPath)
     const compression = inferCompressionFromPath(modelPath)
@@ -158,7 +200,9 @@ export class ModelDataClient {
       compression === 'none'
         ? await this.fetchJson<ModelManifest>(url, signal)
         : await this.fetchCompressedJson<ModelManifest>(url, compression, signal)
-    this.manifestCache.set(modelPath, manifest)
+    if (this.isManifestCacheCurrent(modelPath, cacheSnapshot, signal)) {
+      this.manifestCache.set(modelPath, manifest)
+    }
     return manifest
   }
 
@@ -171,11 +215,15 @@ export class ModelDataClient {
     chunkKey: ModelChunkKey,
     options?: { signal?: AbortSignal; manifest?: ModelManifest },
   ) {
-    const modelPath = await this.resolveModelPath(identifier)
+    const modelPath = await this.resolveModelPath(identifier, options?.signal)
     const cachedForModel = this.chunkCache.get(modelPath)
     const cachedChunk = cachedForModel?.get(chunkKey)
     if (cachedChunk !== undefined) {
       return cachedChunk
+    }
+    const cacheSnapshot = {
+      cacheEpoch: this.cacheEpoch,
+      chunkEpoch: this.getChunkCacheEpoch(modelPath),
     }
     const manifest = options?.manifest ?? (await this.getManifest(identifier, options?.signal))
     if (!manifest.chunks) {
@@ -194,10 +242,12 @@ export class ModelDataClient {
       compression,
       options?.signal,
     )
-    if (!cachedForModel) {
-      this.chunkCache.set(modelPath, new Map([[chunkKey, chunk]]))
-    } else {
-      cachedForModel.set(chunkKey, chunk)
+    if (this.isChunkCacheCurrent(modelPath, cacheSnapshot, options?.signal)) {
+      if (!cachedForModel) {
+        this.chunkCache.set(modelPath, new Map([[chunkKey, chunk]]))
+      } else {
+        cachedForModel.set(chunkKey, chunk)
+      }
     }
     return chunk
   }
@@ -221,7 +271,7 @@ export class ModelDataClient {
     return Object.fromEntries(keys.map((key, index) => [key, chunks[index]]))
   }
 
-  releaseModel(identifier: ModelIdentifier) {
+  releaseModel(identifier: ModelIdentifier, options?: ReleaseModelOptions) {
     const modelPath =
       typeof identifier === 'string' && !isPathLike(identifier)
         ? this.indexById.get(identifier)?.path ?? this.indexBySafeId.get(identifier)?.path
@@ -231,15 +281,24 @@ export class ModelDataClient {
     if (!modelPath) {
       return
     }
+    const includeManifest = options?.includeManifest ?? true
+    if (includeManifest) {
+      this.manifestCacheEpochs.set(modelPath, this.getManifestCacheEpoch(modelPath) + 1)
+      this.manifestCache.delete(modelPath)
+    }
+    this.chunkCacheEpochs.set(modelPath, this.getChunkCacheEpoch(modelPath) + 1)
     this.chunkCache.delete(modelPath)
   }
 
   clearCache() {
+    this.cacheEpoch += 1
     this.indexCache = null
     this.indexById.clear()
     this.indexBySafeId.clear()
     this.manifestCache.clear()
     this.chunkCache.clear()
+    this.manifestCacheEpochs.clear()
+    this.chunkCacheEpochs.clear()
   }
 }
 
