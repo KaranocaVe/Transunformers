@@ -83,7 +83,19 @@
     "emptyTitle": "未选择模型",
     "empty": "从左侧选择一个模型开始查看结构。",
     "titleBadge": "结构图",
-    "params": "{{value}} 参数"
+    "params": "{{value}} 参数",
+    "guideTitle": "图谱说明",
+    "guideCurrentView": "当前视图",
+    "guideLayout": "布局",
+    "guideDensity": "密度",
+    "guideFull": "完整树",
+    "guideCompact": "紧凑树",
+    "guideColorMode": "着色模式",
+    "guideNodeRoles": "节点角色",
+    "guideFlowCues": "连线提示",
+    "guideDescription": "颜色会强调语义角色、参数规模或可训练比例。紧凑视图会折叠重复堆栈，完整视图会显示原始树结构。",
+    "initializing": "初始化中...",
+    "loadError": "模型结构加载失败"
   },
   "layers": {
     "emptyTitle": "未选择模型",
@@ -114,6 +126,36 @@
     "nodeDensityDescription": "图中节点的细节层级。",
     "densityDetailed": "详细",
     "densityCompact": "紧凑",
+    "graphColorMode": "图着色模式",
+    "graphColorModeDescription": "选择让图更强调语义角色、参数规模或可训练比例。",
+    "graphColorRole": "角色",
+    "graphColorParams": "参数",
+    "graphColorTrainable": "可训练",
+    "legendPanel": "图例面板",
+    "legendPanelDescription": "在工作区固定显示一份轻量图谱说明。",
+    "legendHide": "隐藏",
+    "legendShow": "显示",
     "footer": "为大规模模型结构目录浏览而构建。"
+  },
+  "graphSemantics": {
+    "role": {
+      "input": "输入 / 嵌入",
+      "encoder": "编码主干",
+      "decoder": "解码主干",
+      "block": "Transformer 模块",
+      "norm": "归一化",
+      "head": "预测头",
+      "aux": "辅助 / 桥接"
+    },
+    "branch": {
+      "sequential": "顺序流",
+      "parallel": "并行分支",
+      "bridge": "桥接 / 融合"
+    },
+    "quantity": {
+      "role": "按角色着色",
+      "parameters": "按参数规模着色",
+      "trainable": "按可训练比例着色"
+    }
   }
 }

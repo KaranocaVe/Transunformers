@@ -83,7 +83,19 @@
     "emptyTitle": "No model selected",
     "empty": "Choose a model from the left to inspect its structure.",
     "titleBadge": "Graph",
-    "params": "{{value}} Params"
+    "params": "{{value}} Params",
+    "guideTitle": "Graph guide",
+    "guideCurrentView": "Current view",
+    "guideLayout": "Layout",
+    "guideDensity": "Density",
+    "guideFull": "Full tree",
+    "guideCompact": "Compact tree",
+    "guideColorMode": "Color mode",
+    "guideNodeRoles": "Node roles",
+    "guideFlowCues": "Flow cues",
+    "guideDescription": "Color emphasizes either semantic role, parameter scale, or trainable ratio. Compact view folds repeated stacks; full view renders the raw tree.",
+    "initializing": "Initializing...",
+    "loadError": "Failed to load model graph"
   },
   "layers": {
     "emptyTitle": "No model selected",
@@ -114,6 +126,36 @@
     "nodeDensityDescription": "Detail level for graph nodes.",
     "densityDetailed": "Detailed",
     "densityCompact": "Compact",
+    "graphColorMode": "Graph color mode",
+    "graphColorModeDescription": "Choose whether graph semantics emphasize role, parameter scale, or trainable ratio.",
+    "graphColorRole": "Role",
+    "graphColorParams": "Params",
+    "graphColorTrainable": "Trainable",
+    "legendPanel": "Legend panel",
+    "legendPanelDescription": "Keep a lightweight graph guide pinned in the workspace.",
+    "legendHide": "Hide",
+    "legendShow": "Show",
     "footer": "Built for navigating large model structure catalogs."
+  },
+  "graphSemantics": {
+    "role": {
+      "input": "Input / embedding",
+      "encoder": "Encoder trunk",
+      "decoder": "Decoder trunk",
+      "block": "Transformer block",
+      "norm": "Normalization",
+      "head": "Prediction head",
+      "aux": "Auxiliary / glue"
+    },
+    "branch": {
+      "sequential": "Sequential flow",
+      "parallel": "Parallel branch",
+      "bridge": "Bridge / fusion"
+    },
+    "quantity": {
+      "role": "Color by role",
+      "parameters": "Color by parameter scale",
+      "trainable": "Color by trainable ratio"
+    }
   }
 }
