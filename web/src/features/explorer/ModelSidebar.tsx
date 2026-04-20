@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Search,
   Filter,
@@ -12,6 +13,10 @@ import { useModelIndex } from '../../data/queries'
 import { useExplorerStore, type SortMode } from './store'
 import { formatNumber } from '../utils/format'
 import {
+  collectFilterOptions,
+  filterAndSortModels,
+} from './modelFilters'
+import {
     Dropdown,
     DropdownTrigger,
     DropdownMenu,
@@ -19,51 +24,40 @@ import {
   } from "@heroui/react"
 
 export function ModelSidebar() {
+  const { t } = useTranslation()
   const { data: index, isLoading } = useModelIndex()
   const selectedModelId = useExplorerStore((state) => state.selectedModelId)
   const setSelectedModelId = useExplorerStore((state) => state.setSelectedModelId)
+  const search = useExplorerStore((state) => state.search)
+  const setSearch = useExplorerStore((state) => state.setSearch)
   const sortBy = useExplorerStore((state) => state.sortBy)
   const setSortBy = useExplorerStore((state) => state.setSortBy)
-  const [search, setSearch] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
+  const modelTypeFilter = useExplorerStore((state) => state.modelTypeFilter)
+  const setModelTypeFilter = useExplorerStore((state) => state.setModelTypeFilter)
+  const mappingFilter = useExplorerStore((state) => state.mappingFilter)
+  const setMappingFilter = useExplorerStore((state) => state.setMappingFilter)
+  const showFilters = useExplorerStore((state) => state.showFilters)
+  const setShowFilters = useExplorerStore((state) => state.setShowFilters)
   
-  // Simple filtering
   const models = index?.models ?? []
-  const filteredModels = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase()
-    const base = normalizedSearch
-      ? models.filter((model) =>
-          model.id.toLowerCase().includes(normalizedSearch) ||
-          model.safe_id.toLowerCase().includes(normalizedSearch),
-        )
-      : models
+  const filteredModels = useMemo(
+    () => filterAndSortModels(models, { search, sortBy, modelTypeFilter, mappingFilter }),
+    [mappingFilter, modelTypeFilter, models, search, sortBy],
+  )
+  const filterOptions = useMemo(() => collectFilterOptions(models), [models])
 
-    const nameFor = (model: typeof models[number]) => model.safe_id ?? model.id
-
-    return [...base].sort((a, b) => {
-      if (sortBy === 'name') {
-        return nameFor(a).localeCompare(nameFor(b))
-      }
-
-      const valA = sortBy === 'modules' ? (a.module_count ?? 0) : (a.parameter_count ?? 0)
-      const valB = sortBy === 'modules' ? (b.module_count ?? 0) : (b.parameter_count ?? 0)
-
-      if (valA === valB) {
-        return nameFor(a).localeCompare(nameFor(b))
-      }
-
-      return valB - valA
-    })
-  }, [models, search, sortBy])
+  const handleSingleFilter = (nextValue: string, setter: (values: string[]) => void) => {
+    setter(nextValue ? [nextValue] : [])
+  }
 
   return (
     <div className="h-full w-full flex flex-col border-r border-border bg-panel-bg">
       {/* Header */}
       <div className="flex flex-col gap-4 p-4 border-b border-border bg-panel-bg">
          <div className="flex items-center justify-between">
-               <h1 className="font-semibold text-sm text-text-main tracking-wide uppercase">Data Deck</h1>
-               <span className="text-[10px] font-mono text-brand-primary px-1.5 py-0.5 bg-brand-primary/10 rounded">ONLINE</span>
-         </div>
+                <h1 className="font-semibold text-sm text-text-main tracking-wide uppercase">{t('sidebar.title')}</h1>
+                <span className="text-[10px] font-mono text-brand-primary px-1.5 py-0.5 bg-brand-primary/10 rounded">{t('common.online')}</span>
+          </div>
          
          {/* Search */}
          <div className="relative group">
@@ -75,7 +69,7 @@ export function ModelSidebar() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-               placeholder="Search models..."
+                placeholder={t('sidebar.searchPlaceholder')}
                className="block w-full rounded-md bg-bg border border-border py-1.5 pl-9 pr-3 text-xs text-text-main placeholder:text-text-muted focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all font-mono"
               />
               <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
@@ -85,27 +79,63 @@ export function ModelSidebar() {
               </div>
          </div>
          
-         {/* Filters (Mock) */}
-         {showFilters && (
-             <div className="flex items-center gap-2 pb-1 animate-in fade-in slide-in-from-top-1">
-               <span className="text-[10px] font-mono text-text-muted uppercase">SORT_BY:</span>
-               <select
-                 className="bg-bg border border-border text-[10px] rounded px-2 py-0.5 text-text-main"
-                 value={sortBy}
-                 onChange={(event) => setSortBy(event.target.value as SortMode)}
-               >
-                   <option value="parameters">Parameters</option>
-                   <option value="modules">Modules</option>
-                   <option value="name">Name</option>
-               </select>
-             </div>
-         )}
-      </div>
+          {/* Filters */}
+          {showFilters && (
+              <div className="grid gap-2 pb-1 animate-in fade-in slide-in-from-top-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-text-muted uppercase">{t('sidebar.sort')}</span>
+                  <select
+                    className="bg-bg border border-border text-[10px] rounded px-2 py-0.5 text-text-main"
+                    value={sortBy}
+                    onChange={(event) => setSortBy(event.target.value as SortMode)}
+                  >
+                      <option value="parameters">{t('sidebar.sortParameters')}</option>
+                      <option value="modules">{t('sidebar.sortModules')}</option>
+                      <option value="name">{t('sidebar.sortName')}</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-text-muted uppercase">{t('sidebar.type')}</span>
+                  <select
+                    className="min-w-0 flex-1 bg-bg border border-border text-[10px] rounded px-2 py-0.5 text-text-main"
+                    value={modelTypeFilter[0] ?? ''}
+                    onChange={(event) =>
+                      handleSingleFilter(event.target.value, setModelTypeFilter)
+                    }
+                  >
+                    <option value="">{t('sidebar.allFamilies')}</option>
+                    {filterOptions.modelTypes.map((modelType) => (
+                      <option key={modelType} value={modelType}>
+                        {modelType}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-text-muted uppercase">{t('sidebar.mapping')}</span>
+                  <select
+                    className="min-w-0 flex-1 bg-bg border border-border text-[10px] rounded px-2 py-0.5 text-text-main"
+                    value={mappingFilter[0] ?? ''}
+                    onChange={(event) =>
+                      handleSingleFilter(event.target.value, setMappingFilter)
+                    }
+                  >
+                    <option value="">{t('sidebar.allMappings')}</option>
+                    {filterOptions.mappings.map((mappingName) => (
+                      <option key={mappingName} value={mappingName}>
+                        {mappingName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+          )}
+       </div>
 
       {/* Model List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
           {isLoading ? (
-              <div className="p-4 text-center text-xs text-text-muted animate-pulse">Loading models...</div>
+               <div className="p-4 text-center text-xs text-text-muted animate-pulse">{t('sidebar.loading')}</div>
           ) : filteredModels?.map((model) => {
               const isSelected = selectedModelId === model.id
               return (
@@ -142,10 +172,10 @@ export function ModelSidebar() {
                                 <MoreHorizontal size={14} />
                             </Button>
                           </DropdownTrigger>
-                          <DropdownMenu aria-label="Model actions">
-                            <DropdownItem key="view">View Details</DropdownItem>
-                            <DropdownItem key="export">Export Config</DropdownItem>
-                          </DropdownMenu>
+                           <DropdownMenu aria-label="Model actions">
+                             <DropdownItem key="view">{t('sidebar.viewDetails')}</DropdownItem>
+                             <DropdownItem key="export">{t('sidebar.exportConfig')}</DropdownItem>
+                           </DropdownMenu>
                         </Dropdown>
                      </div>
 
@@ -166,16 +196,16 @@ export function ModelSidebar() {
           {filteredModels?.length === 0 && (
            <div className="flex flex-col items-center justify-center p-8 text-center text-text-muted font-mono">
                <Box size={24} className="mb-2 opacity-50" />
-               <div className="text-xs">No models found</div>
-           </div>
-          )}
-      </div>
+                <div className="text-xs">{t('sidebar.empty')}</div>
+            </div>
+           )}
+       </div>
 
-      {/* Footer */}
-      <div className="border-t border-border bg-panel-bg px-4 py-2 text-[9px] font-mono text-text-muted flex justify-between uppercase">
-          <span>v2.0.0-pro</span>
-          <span>Transunformers</span>
-      </div>
+       {/* Footer */}
+       <div className="border-t border-border bg-panel-bg px-4 py-2 text-[9px] font-mono text-text-muted flex justify-between uppercase">
+           <span>{t('common.shown', { count: filteredModels.length })}</span>
+           <span>{t('app.title')}</span>
+        </div>
     </div>
   )
 }
