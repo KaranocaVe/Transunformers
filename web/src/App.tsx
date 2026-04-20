@@ -32,6 +32,7 @@ function SidebarItem({ icon: Icon, active, onClick, label }: { icon: LucideIcon,
 }
 
 function ThemeToggle() {
+    const { t } = useTranslation()
     const { theme, toggleTheme } = useTheme()
     const Icon = theme === 'dark' ? Moon : Sun
     
@@ -39,7 +40,7 @@ function ThemeToggle() {
         <button 
             onClick={toggleTheme}
             className="w-10 h-10 flex items-center justify-center rounded-lg text-text-muted hover:text-text-main hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            title={theme === 'dark' ? t('settings.switchToLight') : t('settings.switchToDark')}
         >
             <Icon size={18} strokeWidth={1.5} />
         </button>
