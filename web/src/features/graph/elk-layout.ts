@@ -1,6 +1,14 @@
 import ELK from 'elkjs/lib/elk.bundled.js'
 import type { Edge, Node } from 'reactflow'
 
+import {
+  DEFAULT_GRAPH_NODE_SIZE,
+  FLOW_EDGE_ROUTING_OWNER,
+  toGraphNodeFrameStyle,
+  type FlowEdgeData,
+  type GraphRoutePoint,
+  type GraphRouteSection,
+} from './graph-builder'
 import { resolveFlowMode } from './graph-builder'
 import type { TreeNode } from './types'
 
@@ -18,6 +26,7 @@ const ROOT_LAYOUT_OPTIONS: Record<string, string> = {
   'elk.layered.nodePlacement.favorStraightEdges': 'true',
   'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
   'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+  'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
   'elk.edgeRouting': 'ORTHOGONAL',
   'elk.contentAlignment': 'H_CENTER V_TOP',
 }
@@ -33,10 +42,36 @@ const CONTAINER_LAYOUT_OPTIONS: Record<string, string> = {
   'elk.layered.nodePlacement.favorStraightEdges': 'true',
   'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
   'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+  'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
   'elk.edgeRouting': 'ORTHOGONAL',
   'elk.contentAlignment': 'H_CENTER V_TOP',
   'elk.nodeSize.constraints': 'MINIMUM_SIZE',
   'elk.padding': '[top=80,left=40,bottom=60,right=40]',
+}
+
+const resolveNumericDimension = (value: unknown) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+
+  return null
+}
+
+const resolveNodeFrameSize = <T,>(node: Pick<Node<T>, 'style' | 'width' | 'height'>) => {
+  const styledWidth = resolveNumericDimension(node.style?.width)
+  const styledHeight = resolveNumericDimension(node.style?.height)
+
+  return {
+    width: styledWidth ?? node.width ?? DEFAULT_GRAPH_NODE_SIZE.width,
+    height: styledHeight ?? node.height ?? DEFAULT_GRAPH_NODE_SIZE.height,
+  }
 }
 
 type ElkGraphNode = {
@@ -54,6 +89,7 @@ type ElkGraphEdge = {
   id: string
   sources: string[]
   targets: string[]
+  container?: string
   sections?: {
     startPoint: { x: number; y: number }
     endPoint: { x: number; y: number }
@@ -70,40 +106,16 @@ type LayoutInfo = {
 
 type EdgeLayoutInfo = {
   id: string
-  points: { x: number; y: number }[]
-}
-
-const buildParentIndex = (node: TreeNode) => {
-  const parentById = new Map<string, string | null>()
-  const walk = (current: TreeNode, parentId: string | null) => {
-    parentById.set(current.id, parentId)
-    current.children.forEach((child) => walk(child, current.id))
-  }
-  walk(node, null)
-  return parentById
-}
-
-const isAncestor = (
-  ancestorId: string,
-  nodeId: string,
-  parentById: Map<string, string | null>,
-) => {
-  let current = parentById.get(nodeId) ?? null
-  while (current) {
-    if (current === ancestorId) {
-      return true
-    }
-    current = parentById.get(current) ?? null
-  }
-  return false
+  sections: GraphRouteSection[]
+  points: GraphRoutePoint[]
 }
 
 const buildElkTree = (
   node: TreeNode,
   sizeById: Map<string, { width: number; height: number }>,
 ): ElkGraphNode => {
-  const size = sizeById.get(node.id) ?? { width: 220, height: 60 }
-  const hasChildren = node.children.length > 0 && node.kind !== 'collapsed'
+  const size = sizeById.get(node.id) ?? DEFAULT_GRAPH_NODE_SIZE
+  const hasChildren = node.children.length > 0
   const flowMode = hasChildren ? resolveFlowMode(node, node.children) : null
 
   const elkNode: ElkGraphNode = {
@@ -115,9 +127,18 @@ const buildElkTree = (
   if (hasChildren) {
     const orderedChildren =
       flowMode?.mode === 'indexed' ? flowMode.order : node.children
-    elkNode.layoutOptions = {
+    const layoutOptions: Record<string, string> = {
       ...CONTAINER_LAYOUT_OPTIONS,
       'elk.direction': flowMode?.mode === 'parallel' ? 'RIGHT' : 'DOWN',
+    }
+    if (flowMode?.mode === 'parallel') {
+      // ELK crashes on compound parent→child branch routing when model-order constraints
+      // are forced inside the same parallel container, so keep the explicit order hint only
+      // for indexed/sequential child flows.
+      delete layoutOptions['elk.layered.considerModelOrder.strategy']
+    }
+    elkNode.layoutOptions = {
+      ...layoutOptions,
     }
     elkNode.children = orderedChildren.map((child) => buildElkTree(child, sizeById))
   }
@@ -125,61 +146,95 @@ const buildElkTree = (
   return elkNode
 }
 
-const buildParallelLayoutEdges = (node: TreeNode): Edge[] => {
-  const edges: Edge[] = []
-  if (node.children.length > 1) {
-    const flowMode = resolveFlowMode(node, node.children)
-    if (flowMode.mode === 'parallel') {
-      const ordered = node.children
-      for (let index = 0; index < ordered.length - 1; index += 1) {
-        const source = ordered[index]
-        const target = ordered[index + 1]
-        edges.push({
-          id: `layout:parallel:${node.id}:${source.id}=>${target.id}`,
-          source: source.id,
-          target: target.id,
-        })
-      }
-    }
+const withPointOffset = (
+  point: GraphRoutePoint,
+  offset: { x: number; y: number },
+): GraphRoutePoint => ({
+  x: point.x + offset.x,
+  y: point.y + offset.y,
+})
+
+const withSectionOffset = (
+  section: GraphRouteSection,
+  offset: { x: number; y: number },
+): GraphRouteSection => ({
+  startPoint: withPointOffset(section.startPoint, offset),
+  endPoint: withPointOffset(section.endPoint, offset),
+  bendPoints: section.bendPoints?.map((bendPoint) => withPointOffset(bendPoint, offset)),
+})
+
+const appendUniquePoint = (
+  points: GraphRoutePoint[],
+  point: GraphRoutePoint,
+) => {
+  const last = points.at(-1)
+  if (last && last.x === point.x && last.y === point.y) {
+    return
   }
-  node.children.forEach((child) => {
-    edges.push(...buildParallelLayoutEdges(child))
-  })
-  return edges
+  points.push(point)
 }
 
-const collectLayout = (
+const absolutizeRouteSections = (
+  sections: NonNullable<ElkGraphEdge['sections']>,
+  offset: { x: number; y: number },
+): GraphRouteSection[] =>
+  sections.map((section) => ({
+    startPoint: withPointOffset(section.startPoint, offset),
+    endPoint: withPointOffset(section.endPoint, offset),
+    bendPoints: section.bendPoints?.map((bendPoint) => withPointOffset(bendPoint, offset)),
+  }))
+
+export const flattenRouteSections = (
+  sections: GraphRouteSection[],
+): GraphRoutePoint[] => {
+  const points: GraphRoutePoint[] = []
+  sections.forEach((section) => {
+    appendUniquePoint(points, section.startPoint)
+    section.bendPoints?.forEach((bendPoint) => appendUniquePoint(points, bendPoint))
+    appendUniquePoint(points, section.endPoint)
+  })
+  return points
+}
+
+const collectNodeLayout = (
   node: ElkGraphNode,
   offsetX: number,
   offsetY: number,
   into: Map<string, LayoutInfo>,
-  edgeInto: Map<string, EdgeLayoutInfo>,
 ) => {
   const x = (node.x ?? 0) + offsetX
   const y = (node.y ?? 0) + offsetY
   const width = node.width ?? 0
   const height = node.height ?? 0
   into.set(node.id, { x, y, width, height })
-  
-  if (node.edges) {
-    node.edges.forEach((edge) => {
-      if (edge.sections && edge.sections.length > 0) {
-        const points: { x: number; y: number }[] = []
-        edge.sections.forEach((section) => {
-            points.push({ x: section.startPoint.x + x, y: section.startPoint.y + y })
-            if (section.bendPoints) {
-                section.bendPoints.forEach(bp => {
-                    points.push({ x: bp.x + x, y: bp.y + y })
-                })
-            }
-            points.push({ x: section.endPoint.x + x, y: section.endPoint.y + y })
-        })
-        edgeInto.set(edge.id, { id: edge.id, points })
-      }
-    })
-  }
 
-  node.children?.forEach((child) => collectLayout(child, x, y, into, edgeInto))
+  node.children?.forEach((child) => collectNodeLayout(child, x, y, into))
+}
+
+const collectEdgeLayout = (
+  node: ElkGraphNode,
+  nodeLayoutInfo: Map<string, LayoutInfo>,
+  edgeInto: Map<string, EdgeLayoutInfo>,
+) => {
+  const nodeOffset = nodeLayoutInfo.get(node.id) ?? { x: 0, y: 0, width: 0, height: 0 }
+
+  node.edges?.forEach((edge) => {
+    if (!edge.sections || edge.sections.length === 0) {
+      return
+    }
+
+    const containerOffset = edge.container
+      ? nodeLayoutInfo.get(edge.container) ?? nodeOffset
+      : nodeOffset
+    const sections = absolutizeRouteSections(edge.sections, containerOffset)
+    edgeInto.set(edge.id, {
+      id: edge.id,
+      sections,
+      points: flattenRouteSections(sections),
+    })
+  })
+
+  node.children?.forEach((child) => collectEdgeLayout(child, nodeLayoutInfo, edgeInto))
 }
 
 
@@ -199,49 +254,31 @@ export const layoutGraph = async <T>(
   const sizeById = new Map(
     nodes.map((node) => [
       node.id,
-      { width: node.width ?? 220, height: node.height ?? 60 },
+      resolveNodeFrameSize(node),
     ]),
   )
 
-  const parentById = buildParentIndex(root)
-  const layoutEdges = edges.filter(
-    (edge) =>
-      !isAncestor(edge.source, edge.target, parentById) &&
-      !isAncestor(edge.target, edge.source, parentById),
-  )
-  const parallelEdges = buildParallelLayoutEdges(root)
-    .filter(
-      (edge) =>
-        !isAncestor(edge.source, edge.target, parentById) &&
-        !isAncestor(edge.target, edge.source, parentById),
-    )
-
   const rootNode = buildElkTree(root, sizeById)
   const graph = {
-    ...rootNode,
+    id: `${rootNode.id}::__layout_root`,
     layoutOptions: {
-      ...(rootNode.layoutOptions ?? {}),
       ...ROOT_LAYOUT_OPTIONS,
       'elk.direction': direction,
     },
-    edges: layoutEdges.map((edge) => ({
+    children: [rootNode],
+    // ELK routes the exact visible edge set from buildGraph; there are no layout-only extras.
+    edges: edges.map((edge) => ({
       id: edge.id,
       sources: [edge.source],
       targets: [edge.target],
     })),
   }
-  for (const edge of parallelEdges) {
-    graph.edges.push({
-      id: edge.id,
-      sources: [edge.source],
-      targets: [edge.target],
-    })
-  }
 
   const layout = await elk.layout(graph)
   const layoutInfo = new Map<string, LayoutInfo>()
   const edgeLayoutInfo = new Map<string, EdgeLayoutInfo>()
-  collectLayout(layout as ElkGraphNode, 0, 0, layoutInfo, edgeLayoutInfo)
+  collectNodeLayout(layout as ElkGraphNode, 0, 0, layoutInfo)
+  collectEdgeLayout(layout as ElkGraphNode, layoutInfo, edgeLayoutInfo)
 
   const positionedNodes = nodes.map((node) => {
     const info = layoutInfo.get(node.id)
@@ -253,13 +290,10 @@ export const layoutGraph = async <T>(
       position: { x: info.x, y: info.y },
       width: info.width,
       height: info.height,
-    }
-    if (node.type === 'group') {
-      next.style = {
+      style: {
         ...(node.style ?? {}),
-        width: info.width,
-        height: info.height,
-      }
+        ...toGraphNodeFrameStyle(info),
+      },
     }
     return next
   })
@@ -279,30 +313,39 @@ export const layoutGraph = async <T>(
       const offsetY = minY < padding ? padding - minY : 0
       
       if (offsetX !== 0 || offsetY !== 0) {
-          positionedNodes.forEach(node => {
-              node.position.x += offsetX
-              node.position.y += offsetY
-          })
-          // Offset edge points as well
-          edgeLayoutInfo.forEach(info => {
-              info.points.forEach(p => {
-                  p.x += offsetX
-                  p.y += offsetY
-              })
-          })
-      }
-  }
+           positionedNodes.forEach(node => {
+               node.position.x += offsetX
+               node.position.y += offsetY
+           })
+           // Keep route sections and flattened points in sync after normalization.
+           edgeLayoutInfo.forEach(info => {
+               info.sections = info.sections.map((section) =>
+                 withSectionOffset(section, { x: offsetX, y: offsetY }),
+               )
+               info.points = flattenRouteSections(info.sections)
+           })
+       }
+   }
 
   const routedEdges = edges.map((edge) => {
       const info = edgeLayoutInfo.get(edge.id)
       if (info) {
           return {
               ...edge,
-              data: { ...edge.data, points: info.points }
+              data: {
+                ...(edge.data as Record<string, unknown> | undefined),
+                kind: 'flow',
+                routingOwner: FLOW_EDGE_ROUTING_OWNER,
+                route: {
+                  owner: FLOW_EDGE_ROUTING_OWNER,
+                  sections: info.sections,
+                  points: info.points,
+                },
+              } as FlowEdgeData,
           }
       }
       return edge
-  })
+   })
 
   return { nodes: positionedNodes, edges: routedEdges }
 }

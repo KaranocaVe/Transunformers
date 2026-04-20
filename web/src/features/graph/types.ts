@@ -73,6 +73,8 @@ export type GraphNodeData = {
   tags?: string[] | null
   synthetic?: boolean
   hasChildren: boolean
+  isExpandable: boolean
+  isExpanded: boolean
   moduleCount?: number
   layerCount?: number
   lane?: string

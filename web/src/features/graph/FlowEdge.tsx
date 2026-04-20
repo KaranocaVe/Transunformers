@@ -5,6 +5,127 @@ import {
   type EdgeProps,
 } from 'reactflow'
 
+import {
+  FLOW_EDGE_ROUTING_OWNER,
+  type FlowEdgeData,
+  type GraphRoutePoint,
+  type GraphRouteSection,
+} from './graph-builder'
+
+const warnedMissingElkRoutes = new Set<string>()
+
+const appendUniquePoint = (
+  points: GraphRoutePoint[],
+  point: GraphRoutePoint,
+) => {
+  const last = points.at(-1)
+  if (last && last.x === point.x && last.y === point.y) {
+    return
+  }
+  points.push(point)
+}
+
+const normalizeRoutePoints = (points: GraphRoutePoint[] | undefined): GraphRoutePoint[] => {
+  if (!points || points.length === 0) {
+    return []
+  }
+
+  const normalized: GraphRoutePoint[] = []
+  points.forEach((point) => {
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+      return
+    }
+    appendUniquePoint(normalized, point)
+  })
+  return normalized
+}
+
+const flattenRouteSections = (sections: GraphRouteSection[] | undefined): GraphRoutePoint[] => {
+  if (!sections || sections.length === 0) {
+    return []
+  }
+
+  const flattened: GraphRoutePoint[] = []
+  sections.forEach((section) => {
+    if (Number.isFinite(section.startPoint.x) && Number.isFinite(section.startPoint.y)) {
+      appendUniquePoint(flattened, section.startPoint)
+    }
+    section.bendPoints?.forEach((bendPoint) => {
+      if (Number.isFinite(bendPoint.x) && Number.isFinite(bendPoint.y)) {
+        appendUniquePoint(flattened, bendPoint)
+      }
+    })
+    if (Number.isFinite(section.endPoint.x) && Number.isFinite(section.endPoint.y)) {
+      appendUniquePoint(flattened, section.endPoint)
+    }
+  })
+  return flattened
+}
+
+const buildPolylinePath = (points: GraphRoutePoint[]) => {
+  if (points.length === 0) {
+    return ''
+  }
+
+  return points.reduce(
+    (path, point, index) =>
+      index === 0 ? `M ${point.x} ${point.y}` : `${path} L ${point.x} ${point.y}`,
+    '',
+  )
+}
+
+type FlowEdgePathInput = Pick<
+  EdgeProps<FlowEdgeData>,
+  | 'id'
+  | 'sourceX'
+  | 'sourceY'
+  | 'targetX'
+  | 'targetY'
+  | 'sourcePosition'
+  | 'targetPosition'
+  | 'data'
+>
+
+export const buildFlowEdgePath = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  data,
+}: FlowEdgePathInput) => {
+  const routePoints = normalizeRoutePoints(
+    flattenRouteSections(data?.route?.sections).length > 0
+      ? flattenRouteSections(data?.route?.sections)
+      : data?.route?.points,
+  )
+  if (routePoints.length > 0) {
+    return buildPolylinePath(routePoints)
+  }
+
+  if (data?.routingOwner === FLOW_EDGE_ROUTING_OWNER) {
+    if (!warnedMissingElkRoutes.has(id)) {
+      warnedMissingElkRoutes.add(id)
+      console.warn(`Missing ELK route points for flow edge ${id}; rendering a direct guard path.`)
+    }
+    return `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`
+  }
+
+  const [smoothPath] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition: sourcePosition ?? Position.Bottom,
+    targetPosition: targetPosition ?? Position.Top,
+    borderRadius: 20,
+    offset: 28,
+  })
+  return smoothPath
+}
+
 export function FlowEdge({
   id,
   sourceX,
@@ -17,45 +138,30 @@ export function FlowEdge({
   style,
   markerEnd,
   data,
-}: EdgeProps) {
-  // Increased radius for smoother corners
-  // Use ELK routing points if available
-  let path = ''
-  if (data?.points && Array.isArray(data.points) && data.points.length > 0) {
-     const points = data.points as {x: number, y: number}[]
-     path = `M ${sourceX} ${sourceY}`
-     // We should probably rely on the points from ELK more directly, 
-     // but React Flow passes source/target X/Y which might differ slightly if we adjusted nodes.
-     // However, ELK points usually start/end at the node center or port.
-     // Let's just use the points.
-     // Optimization: filter out points that are too close (simplification)
-     
-     if (points.length > 0) {
-        path = `M ${points[0].x} ${points[0].y}`
-        for (let i = 1; i < points.length; i++) {
-           path += ` L ${points[i].x} ${points[i].y}`
-        }
-     }
-  } else {
-     const [smoothPath] = getSmoothStepPath({
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        sourcePosition: sourcePosition ?? Position.Bottom,
-        targetPosition: targetPosition ?? Position.Top,
-        borderRadius: 20, 
-        offset: 28,
-      })
-      path = smoothPath
-  }
+}: EdgeProps<FlowEdgeData>) {
+  const path = buildFlowEdgePath({
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    data,
+  })
 
   return (
-    <BaseEdge
-       id={id}
-       path={path}
-       style={style}
-       markerEnd={markerEnd}
-     />
+    <g
+      data-testid="graph-edge"
+      data-edge-id={id}
+      data-routing-owner={data?.routingOwner ?? 'fallback'}
+    >
+      <BaseEdge
+        id={id}
+        path={path}
+        style={style}
+        markerEnd={markerEnd}
+      />
+    </g>
   )
 }

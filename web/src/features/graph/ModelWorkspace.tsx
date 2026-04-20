@@ -1,6 +1,6 @@
 import { Button, Spinner } from '@heroui/react'
 import { formatNumber } from '../utils/format'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactFlow, {
   ReactFlowProvider,
@@ -8,7 +8,7 @@ import ReactFlow, {
   type Node,
   useReactFlow,
 } from 'reactflow'
-import { useModelChunk, useModelManifest } from '../../data'
+import { modelDataClient, useModelChunk, useModelManifest } from '../../data'
 import { useExplorerStore } from '../explorer/store'
 import { NodeInspector } from '../inspector/NodeInspector'
 import { FlowEdge } from './FlowEdge'
@@ -16,12 +16,34 @@ import { GroupNode } from './GroupNode'
 import { ModuleNode } from './ModuleNode'
 import { buildGraph } from './graph-builder'
 import { layoutGraph } from './elk-layout'
+import { applySelectedNodeToLayoutNodes } from './selection'
 import { normalizeTree } from './tree'
 import type { GraphNodeData, RawNode } from './types'
 import { Maximize2, Search } from 'lucide-react'
 
 const nodeTypes = { module: ModuleNode, group: GroupNode }
 const edgeTypes = { flow: FlowEdge }
+const graphQueryGcTime = 0
+
+type LayoutState = {
+  nodes: Node<GraphNodeData>[]
+  edges: Edge[]
+  revision: number
+  status: 'idle' | 'loading' | 'ready'
+  modelId?: string
+}
+
+const isGraphNodeSelectable = (node: GraphNodeData) => {
+  if (!node.hasChildren) {
+    return true
+  }
+
+  if (node.kind !== 'collapsed') {
+    return false
+  }
+
+  return !node.isExpanded
+}
 
 // ... (NodeBox helpers logic inline)
 
@@ -49,9 +71,12 @@ function GraphCanvas({
   fitViewKey?: string
 }) {
   const { fitView, getZoom } = useReactFlow()
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const lastFitKeyRef = useRef<string | undefined>(undefined)
   const ignoreNextMoveRef = useRef(false)
+  const fitFrameRef = useRef<number | undefined>(undefined)
   const zoomRef = useRef(1)
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
   const commitZoom = (nextZoom: number) => {
     if (Math.abs(nextZoom - zoomRef.current) < 0.02) return
@@ -60,22 +85,84 @@ function GraphCanvas({
   }
 
   useEffect(() => {
-    if (!fitViewKey || nodes.length === 0) return
-    if (lastFitKeyRef.current === fitViewKey) return
-    lastFitKeyRef.current = fitViewKey
-    const fitNodes = nodes
-    requestAnimationFrame(() => {
-      ignoreNextMoveRef.current = true
-      fitView({ padding: 0.2, nodes: fitNodes, duration: 800 })
-      requestAnimationFrame(() => { zoomRef.current = getZoom() })
+    const element = containerRef.current
+    if (!element) return
+
+    const updateSize = (width: number, height: number) => {
+      const nextWidth = Math.round(width)
+      const nextHeight = Math.round(height)
+      setContainerSize((current) => {
+        if (current.width === nextWidth && current.height === nextHeight) {
+          return current
+        }
+        return { width: nextWidth, height: nextHeight }
+      })
+    }
+
+    updateSize(element.clientWidth, element.clientHeight)
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      updateSize(entry.contentRect.width, entry.contentRect.height)
     })
-  }, [fitViewKey, nodes, fitView, getZoom, onZoomChange])
+    observer.observe(element)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (fitFrameRef.current !== undefined) {
+        cancelAnimationFrame(fitFrameRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!fitViewKey || loading || nodes.length === 0) return
+    if (containerSize.width === 0 || containerSize.height === 0) return
+
+    const nextFitKey = `${fitViewKey}:${containerSize.width}x${containerSize.height}`
+    if (lastFitKeyRef.current === nextFitKey) return
+    lastFitKeyRef.current = nextFitKey
+
+    const fitNodes = nodes
+    let innerFrame: number | undefined
+    fitFrameRef.current = requestAnimationFrame(() => {
+      innerFrame = requestAnimationFrame(() => {
+        ignoreNextMoveRef.current = true
+        fitView({ padding: 0.2, nodes: fitNodes, duration: 800 })
+        requestAnimationFrame(() => {
+          zoomRef.current = getZoom()
+        })
+      })
+    })
+
+    return () => {
+      if (fitFrameRef.current !== undefined) {
+        cancelAnimationFrame(fitFrameRef.current)
+        fitFrameRef.current = undefined
+      }
+      if (innerFrame !== undefined) {
+        cancelAnimationFrame(innerFrame)
+      }
+    }
+  }, [containerSize.height, containerSize.width, fitViewKey, getZoom, loading, nodes, fitView])
 
   return (
-    <div className="relative h-full w-full bg-screen" data-testid="graph-canvas">
+    <div
+      ref={containerRef}
+      className="relative h-full w-full bg-screen"
+      data-testid="graph-canvas"
+      data-container-width={containerSize.width}
+      data-container-height={containerSize.height}
+    >
       {loading && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-screen/50 backdrop-blur-sm">
-           <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-3">
              <Spinner size="lg" />
              <p className="text-xs font-mono text-text-muted">INITIALIZING...</p>
            </div>
@@ -95,25 +182,28 @@ function GraphCanvas({
         minZoom={0.1}
         maxZoom={4}
         proOptions={{ hideAttribution: true }}
-        fitView
       />
     </div>
   )
 }
 
-export function ModelWorkspace() {
+export const ModelWorkspace = memo(function ModelWorkspace({
+  containerWidth,
+}: {
+  containerWidth?: number
+}) {
   const { t } = useTranslation()
-  const {
-    selectedModelId,
-    expandedNodes,
-    setSelectedNodeId,
-    selectedNodeId,
-    toggleExpanded,
-    layoutDirection,
-    viewMode: preferredViewMode,
-  } = useExplorerStore()
+  const selectedModelId = useExplorerStore((state) => state.selectedModelId)
+  const expandedNodes = useExplorerStore((state) => state.expandedNodes)
+  const setSelectedNodeId = useExplorerStore((state) => state.setSelectedNodeId)
+  const selectedNodeId = useExplorerStore((state) => state.selectedNodeId)
+  const toggleExpanded = useExplorerStore((state) => state.toggleExpanded)
+  const layoutDirection = useExplorerStore((state) => state.layoutDirection)
+  const preferredViewMode = useExplorerStore((state) => state.viewMode)
 
-  const { data: manifest, isLoading: manifestLoading } = useModelManifest(selectedModelId)
+  const { data: manifest, isLoading: manifestLoading } = useModelManifest(selectedModelId, {
+    gcTime: graphQueryGcTime,
+  })
   const isChunked = Boolean(manifest?.chunks?.items?.length)
 
   const { compactTree, fullTree } = useMemo(() => {
@@ -139,7 +229,9 @@ export function ModelWorkspace() {
     return undefined
   }, [selectedModelId, isChunked, manifest, preferredViewMode])
 
-  const treeQuery = useModelChunk(selectedModelId, treeChunkKey)
+  const treeQuery = useModelChunk(selectedModelId, treeChunkKey, {
+    gcTime: graphQueryGcTime,
+  })
 
   
   // Removed config related logic here
@@ -175,45 +267,175 @@ export function ModelWorkspace() {
     })
   }, [treeRoot, expandedNodes, viewMode, autoDepth])
 
-  const [layoutedNodes, setLayoutedNodes] = useState<Node<GraphNodeData>[]>([])
-  const [layoutedEdges, setLayoutedEdges] = useState<Edge[]>([])
-  const [layouting, setLayouting] = useState(false)
-  const previousLayoutRef = useRef<Node<GraphNodeData>[]>([])
+  const [layoutState, setLayoutState] = useState<LayoutState>({
+    nodes: [],
+    edges: [],
+    revision: 0,
+    status: 'idle',
+    modelId: undefined,
+  })
+  const layoutRequestRef = useRef(0)
+  const appliedSelectedNodeIdRef = useRef<string | undefined>(selectedNodeId)
+  const latestSelectedNodeIdRef = useRef<string | undefined>(selectedNodeId)
 
   useEffect(() => {
-      setTimeout(() => {
-        setLayoutedNodes([])
-        setLayoutedEdges([])
-      }, 0)
+    return () => {
+      if (selectedModelId) {
+        modelDataClient.releaseModel(selectedModelId)
+      }
+    }
   }, [selectedModelId])
 
-  useEffect(() => { previousLayoutRef.current = layoutedNodes }, [layoutedNodes])
+  useEffect(() => {
+    if (!selectedModelId || !treeChunkKey) {
+      return
+    }
+
+    return () => {
+      modelDataClient.releaseModel(selectedModelId, { includeManifest: false })
+    }
+  }, [selectedModelId, treeChunkKey])
+
+  useEffect(() => {
+    latestSelectedNodeIdRef.current = selectedNodeId
+  }, [selectedNodeId])
 
   useEffect(() => {
     if (!graph) {
-      setTimeout(() => { setLayoutedNodes([]); setLayoutedEdges([]) }, 0)
+      layoutRequestRef.current += 1
+      appliedSelectedNodeIdRef.current = undefined
+      setLayoutState((current) => {
+        if (
+          current.nodes.length === 0 &&
+          current.edges.length === 0 &&
+          current.status === 'idle' &&
+          current.modelId === selectedModelId
+        ) {
+          return current
+        }
+        return {
+          nodes: [],
+          edges: [],
+          revision: current.revision,
+          status: 'idle',
+          modelId: selectedModelId,
+        }
+      })
       return
     }
-    let active = true
-    setTimeout(() => { setLayouting(true) }, 0)
+
+    const requestId = layoutRequestRef.current + 1
+    layoutRequestRef.current = requestId
+
+    setLayoutState((current) => ({
+      nodes: current.modelId === selectedModelId ? current.nodes : [],
+      edges: current.modelId === selectedModelId ? current.edges : [],
+      revision: current.revision,
+      status: 'loading',
+      modelId: selectedModelId,
+    }))
+
+    let cancelled = false
+
     layoutGraph(graph.nodes, graph.layoutEdges, graph.layoutRoot, { direction: layoutDirection })
       .then(({ nodes: nextNodes, edges: nextEdges }) => {
-        if (!active) return
-        setLayoutedNodes(nextNodes)
-        setLayoutedEdges(nextEdges)
-      })
-      .finally(() => { if (active) setLayouting(false) })
-    return () => { active = false }
-  }, [graph, layoutDirection])
+        if (cancelled || layoutRequestRef.current !== requestId) return
+        const selectableSelectedNodeId =
+          latestSelectedNodeIdRef.current && graph.nodeMap.get(latestSelectedNodeIdRef.current)
+            ? isGraphNodeSelectable(graph.nodeMap.get(latestSelectedNodeIdRef.current)!)
+              ? latestSelectedNodeIdRef.current
+              : undefined
+            : undefined
 
-  const selectedNode = selectedNodeId ? graph?.nodeMap.get(selectedNodeId) : undefined
-  const renderNodes = useMemo(() => layoutedNodes.map(n => ({ ...n, selected: n.id === selectedNodeId })), [layoutedNodes, selectedNodeId])
+        const selectedLayoutNodes = applySelectedNodeToLayoutNodes(
+          nextNodes,
+          undefined,
+          selectableSelectedNodeId,
+        )
+        appliedSelectedNodeIdRef.current = selectableSelectedNodeId
+        setLayoutState((current) => ({
+          nodes: selectedLayoutNodes,
+          edges: nextEdges,
+          revision: current.revision + 1,
+          status: 'ready',
+          modelId: selectedModelId,
+        }))
+      })
+      .catch(() => {
+        if (cancelled || layoutRequestRef.current !== requestId) return
+        setLayoutState((current) => ({
+          ...current,
+          nodes: [],
+          edges: [],
+          status: 'ready',
+          modelId: selectedModelId,
+        }))
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [graph, layoutDirection, selectedModelId])
 
   useEffect(() => {
-    if (selectedNodeId && graph && !graph.nodeMap.has(selectedNodeId)) {
+    if (!selectedNodeId || !graph) {
+      return
+    }
+
+    const selectedGraphNode = graph.nodeMap.get(selectedNodeId)
+    if (!selectedGraphNode) {
+      setSelectedNodeId(undefined)
+      return
+    }
+
+    if (!isGraphNodeSelectable(selectedGraphNode)) {
       setSelectedNodeId(undefined)
     }
   }, [graph, selectedNodeId, setSelectedNodeId])
+
+  useEffect(() => {
+    setLayoutState((current) => {
+      const nextNodes = applySelectedNodeToLayoutNodes(
+        current.nodes,
+        appliedSelectedNodeIdRef.current,
+        selectedNodeId,
+      )
+      if (nextNodes === current.nodes) {
+        return current
+      }
+      return {
+        ...current,
+        nodes: nextNodes,
+      }
+    })
+    appliedSelectedNodeIdRef.current = selectedNodeId
+  }, [selectedNodeId])
+
+  const selectedNode = selectedNodeId ? graph?.nodeMap.get(selectedNodeId) : undefined
+  const inspectorOpen = Boolean(selectedNode)
+  const loading = Boolean(selectedModelId) && (layoutState.status === 'loading' || manifestLoading || treeQuery.isLoading)
+  const fitViewKey = useMemo(() => {
+    if (layoutState.status !== 'ready' || layoutState.nodes.length === 0 || !selectedModelId) {
+      return undefined
+    }
+    return [
+      selectedModelId,
+      layoutState.revision,
+      layoutDirection,
+      viewMode,
+      containerWidth ?? 'auto',
+      inspectorOpen ? 'inspector-open' : 'inspector-closed',
+    ].join(':')
+  }, [
+    containerWidth,
+    inspectorOpen,
+    layoutDirection,
+    layoutState.nodes.length,
+    layoutState.revision,
+    layoutState.status,
+    selectedModelId,
+    viewMode,
+  ])
 
   if (selectedModelId && isChunked && treeQuery.error) {
     return (
@@ -244,14 +466,25 @@ export function ModelWorkspace() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-bg" data-testid="workspace">
+    <div
+      className="flex h-full w-full flex-col bg-bg"
+      data-testid="workspace"
+      data-layout-status={loading ? 'loading' : 'ready'}
+      data-layout-revision={layoutState.revision}
+      data-selected-model-id={selectedModelId ?? ''}
+      data-layout-direction={layoutDirection}
+      data-view-mode={viewMode}
+      data-inspector-open={inspectorOpen ? 'true' : 'false'}
+      data-graph-node-count={layoutState.nodes.length}
+      data-graph-edge-count={layoutState.edges.length}
+    >
       {/* Workspace Toolbar */}
       <div className="h-12 border-b border-border bg-panel-bg flex items-center justify-between px-4 shrink-0 z-20">
         <div className="flex items-center gap-3">
-           <h1 className="font-semibold text-sm text-text-main flex items-center gap-2">
-             {manifest?.model.safe_id ?? '...'}
-             <span className="text-[10px] uppercase font-mono bg-border/50 text-text-muted px-1.5 py-0.5 rounded">Graph</span>
-           </h1>
+           <h1 className="font-semibold text-sm text-text-main flex items-center gap-2" data-testid="workspace-title">
+              {manifest?.model.safe_id ?? '...'}
+              <span className="text-[10px] uppercase font-mono bg-border/50 text-text-muted px-1.5 py-0.5 rounded">Graph</span>
+            </h1>
         </div>
         
         <div className="flex items-center gap-2">
@@ -271,20 +504,20 @@ export function ModelWorkspace() {
         <div className="flex-1 min-w-0 h-full relative">
           <ReactFlowProvider>
             <GraphCanvas
-              nodes={renderNodes}
-              edges={layoutedEdges}
-              loading={layouting || manifestLoading || treeQuery.isLoading}
+              nodes={layoutState.nodes}
+              edges={layoutState.edges}
+              loading={loading}
               onNodeClick={(node) => {
-                if (node.hasChildren && node.kind !== 'collapsed') return
+                if (!isGraphNodeSelectable(node)) return
                 setSelectedNodeId(node.id)
               }}
               onNodeDoubleClick={(node) => {
-                if (node.kind === 'collapsed') return
-                toggleExpanded(node.id)
+                if (!node.isExpandable) return
+                toggleExpanded(node.id, node.isExpanded)
               }}
               onZoomChange={() => {}}
               onClearSelection={() => setSelectedNodeId(undefined)}
-              fitViewKey={selectedModelId}
+              fitViewKey={fitViewKey}
             />
           </ReactFlowProvider>
         </div>
@@ -303,4 +536,4 @@ export function ModelWorkspace() {
       </div>
     </div>
   )
-}
+})

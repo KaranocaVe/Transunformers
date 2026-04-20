@@ -3,6 +3,29 @@ import { Position, MarkerType, type Edge, type Node } from 'reactflow'
 import type { GraphNodeData, TreeNode } from './types'
 import { splitCollapsedNode } from './tree'
 
+export type GraphRoutePoint = {
+  x: number
+  y: number
+}
+
+export type GraphRouteSection = {
+  startPoint: GraphRoutePoint
+  endPoint: GraphRoutePoint
+  bendPoints?: GraphRoutePoint[]
+}
+
+export const FLOW_EDGE_ROUTING_OWNER = 'elk' as const
+
+export type FlowEdgeData = {
+  kind: 'flow'
+  routingOwner?: typeof FLOW_EDGE_ROUTING_OWNER
+  route?: {
+    owner: typeof FLOW_EDGE_ROUTING_OWNER
+    sections: GraphRouteSection[]
+    points: GraphRoutePoint[]
+  }
+}
+
 export type GraphBuildOptions = {
   expanded: Record<string, boolean>
   autoDepth: number
@@ -19,21 +42,96 @@ export type Stage =
   | 'head'
   | 'aux'
 
+export const GRAPH_NODE_SIZE_CONTRACT = {
+  labelBaseWidth: 170,
+  labelCharacterWidth: 7,
+  leaf: {
+    minWidth: 220,
+    maxWidth: 380,
+    baseHeight: 72,
+    classNameHeight: 18,
+    metricsHeight: 20,
+  },
+  collapsed: {
+    minWidth: 220,
+    maxWidth: 380,
+    baseHeight: 72,
+    classNameHeight: 18,
+    metricsHeight: 20,
+  },
+  container: {
+    minWidth: 300,
+    maxWidth: 520,
+    height: 130,
+  },
+} as const
+
+export const DEFAULT_GRAPH_NODE_SIZE = {
+  width: GRAPH_NODE_SIZE_CONTRACT.leaf.minWidth,
+  height: GRAPH_NODE_SIZE_CONTRACT.leaf.baseHeight,
+} as const
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, value))
+
+const estimateLabelWidth = (
+  label: string,
+  bounds: { minWidth: number; maxWidth: number },
+) =>
+  clamp(
+    GRAPH_NODE_SIZE_CONTRACT.labelBaseWidth +
+      label.length * GRAPH_NODE_SIZE_CONTRACT.labelCharacterWidth,
+    bounds.minWidth,
+    bounds.maxWidth,
+  )
+
+const resolveLeafNodeHeight = (node: TreeNode) => {
+  let height = GRAPH_NODE_SIZE_CONTRACT.leaf.baseHeight
+  if (node.className) {
+    height += GRAPH_NODE_SIZE_CONTRACT.leaf.classNameHeight
+  }
+
+  const params = node.parameters?.total?.count ?? node.parameters?.self?.count ?? 0
+  const buffers = node.buffers?.total?.count ?? node.buffers?.self?.count ?? 0
+  if (params > 0 || buffers > 0) {
+    height += GRAPH_NODE_SIZE_CONTRACT.leaf.metricsHeight
+  }
+
+  return height
+}
+
+const isContainerNode = (node: Pick<TreeNode, 'children'>) => node.children.length > 0
+
+// React Flow `style.width` / `style.height` is the single size contract.
+// The builder seeds it, ELK consumes it, and the DOM nodes render against 100% of that frame.
+export const getGraphNodeSize = (node: TreeNode) => {
+  if (isContainerNode(node)) {
+    return {
+      width: estimateLabelWidth(node.name, GRAPH_NODE_SIZE_CONTRACT.container),
+      height: GRAPH_NODE_SIZE_CONTRACT.container.height,
+    }
+  }
+
+  if (node.kind === 'collapsed') {
+    return {
+      width: estimateLabelWidth(node.name, GRAPH_NODE_SIZE_CONTRACT.collapsed),
+      height: resolveLeafNodeHeight(node),
+    }
+  }
+
+  return {
+    width: estimateLabelWidth(node.name, GRAPH_NODE_SIZE_CONTRACT.leaf),
+    height: resolveLeafNodeHeight(node),
+  }
+}
+
+export const toGraphNodeFrameStyle = (size: { width: number; height: number }) => ({
+  width: size.width,
+  height: size.height,
+})
+
 const resolveNodeText = (node: TreeNode) =>
   `${node.name} ${node.className ?? ''} ${node.path} ${(node.tags ?? []).join(' ')}`.toLowerCase()
-
-const getNodeSize = (node: TreeNode) => {
-  const label = node.name
-  const baseWidth = Math.max(220, Math.min(380, 170 + label.length * 7))
-  if (node.kind === 'collapsed') {
-    return { width: baseWidth, height: 66 }
-  }
-  if (node.children.length > 0) {
-    return { width: Math.max(baseWidth, 300), height: 130 }
-  }
-  // Original height: 100, original width: baseWidth
-  return { width: baseWidth - 20, height: 80 }
-}
 
 const shouldExpandNode = (
   node: TreeNode,
@@ -325,6 +423,7 @@ export const buildGraph = (
   const flowEdges: Edge[] = []
   const nodeMap = new Map<string, GraphNodeData>()
   const stageCache = new Map<string, Stage>()
+  const expansionState = new Map<string, { isExpandable: boolean; isExpanded: boolean }>()
 
 
 
@@ -337,24 +436,28 @@ export const buildGraph = (
     className: 'edge-structure',
   })
 
-  const createFlowEdge = (source: string, target: string): Edge => ({
+  const createFlowEdge = (source: string, target: string): Edge<FlowEdgeData> => ({
     id: `flow:${source}=>${target}`,
     source,
     target,
     type: 'flow',
-    data: { kind: 'flow' },
+    // Visible flow edges are the single routing source of truth:
+    // ELK lays out exactly this set, and FlowEdge renders the returned route.
+    data: { kind: 'flow', routingOwner: FLOW_EDGE_ROUTING_OWNER },
     className: 'edge-flow',
     markerEnd: {
       type: MarkerType.ArrowClosed,
-      width: 10,
-      height: 10,
+      width: 20,
+      height: 20,
       color: '#6366f1',
     },
   })
 
   const resolveGraphTree = (node: TreeNode, depth: number): TreeNode => {
     const nextNode = { ...node, depth }
-    const expand = shouldExpandNode(nextNode, options)
+    const isExpandable = nextNode.kind === 'collapsed' || nextNode.children.length > 0
+    const expand = isExpandable ? shouldExpandNode(nextNode, options) : false
+    expansionState.set(nextNode.id, { isExpandable, isExpanded: expand })
     const children = expand ? resolveChildren(nextNode, options, expand) : []
     return {
       ...nextNode,
@@ -370,9 +473,13 @@ export const buildGraph = (
 
   const visit = (node: TreeNode) => {
     const label = node.name
-    const size = getNodeSize(node)
+    const size = getGraphNodeSize(node)
     const stage = resolveStage(node, stageCache)
-    const isContainer = node.children.length > 0 && node.kind !== 'collapsed'
+    const isContainer = isContainerNode(node)
+    const nodeExpansionState = expansionState.get(node.id) ?? {
+      isExpandable: node.kind === 'collapsed' || node.children.length > 0,
+      isExpanded: false,
+    }
     const data: GraphNodeData = {
       id: node.id,
       label,
@@ -392,6 +499,8 @@ export const buildGraph = (
       tags: node.tags,
       synthetic: node.synthetic,
       hasChildren: node.children.length > 0 || node.kind === 'collapsed',
+      isExpandable: nodeExpansionState.isExpandable,
+      isExpanded: nodeExpansionState.isExpanded,
     }
     nodeMap.set(node.id, data)
     nodes.push({
@@ -401,6 +510,7 @@ export const buildGraph = (
       position: { x: 0, y: 0 },
       width: size.width,
       height: size.height,
+      style: toGraphNodeFrameStyle(size),
       zIndex: isContainer ? 1 : 2,
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,

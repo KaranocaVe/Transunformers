@@ -19,17 +19,24 @@ export function ModuleNode({ data, selected }: NodeProps<GraphNodeData>) {
   
   return (
     <div
+      data-id={data.id}
       data-node-id={data.id}
+      data-path={data.path}
+      data-kind={data.kind ?? 'module'}
+      data-label={data.label}
+      data-expandable={data.isExpandable ? 'true' : 'false'}
+      data-expanded={data.isExpanded ? 'true' : 'false'}
+      data-has-children={data.hasChildren ? 'true' : 'false'}
+      data-selected={selected ? 'true' : 'false'}
       data-testid="module-node"
       className={`
-        relative rounded-md border text-xs transition-all duration-200
+        relative h-full w-full overflow-hidden rounded-md border text-xs transition-all duration-200
         ${selected 
           ? 'bg-panel-bg border-brand-primary ring-1 ring-brand-primary shadow-lg' 
           : 'bg-panel-bg border-border hover:border-brand-primary/50'
         }
         ${isCollapsed ? 'opacity-90' : ''}
       `}
-      style={{ minWidth: '160px', maxWidth: '240px' }}
     >
       {/* Handles */}
       {[Position.Top, Position.Bottom, Position.Left, Position.Right].map((pos) => (

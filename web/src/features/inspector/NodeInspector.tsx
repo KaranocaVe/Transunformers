@@ -75,9 +75,12 @@ export function NodeInspector({
                {node.kind ?? 'MODULE'}
             </span>
          </div>
-         <h2 className="font-semibold text-lg text-text-main break-words leading-snug mb-1">
+         <h2
+           className="font-semibold text-lg text-text-main break-words leading-snug mb-1"
+           data-testid="inspector-title"
+         >
            {node.label}
-         </h2>
+          </h2>
          <div className="text-xs font-mono text-text-muted break-all select-all">
            {node.className || 'Unknown Class'}
          </div>

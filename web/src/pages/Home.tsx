@@ -5,9 +5,12 @@ import { useExplorerStore } from '../features/explorer/store'
 import { ModelWorkspace } from '../features/graph/ModelWorkspace'
 
 export default function Home() {
-  const { sidebarWidth, setSidebarWidth } = useExplorerStore()
+  const sidebarWidth = useExplorerStore((state) => state.sidebarWidth)
+  const setSidebarWidth = useExplorerStore((state) => state.setSidebarWidth)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const workspaceRef = useRef<HTMLDivElement | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [workspaceWidth, setWorkspaceWidth] = useState(0)
 
   useEffect(() => {
     if (!dragging) return
@@ -34,6 +37,30 @@ export default function Home() {
     }
   }, [dragging, setSidebarWidth])
 
+  useEffect(() => {
+    const element = workspaceRef.current
+    if (!element) return
+
+    const updateWidth = (width: number) => {
+      const nextWidth = Math.round(width)
+      setWorkspaceWidth((current) => (current === nextWidth ? current : nextWidth))
+    }
+
+    updateWidth(element.clientWidth)
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      updateWidth(entry.contentRect.width)
+    })
+
+    observer.observe(element)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
   return (
     <section className="flex h-full min-h-0 flex-col gap-4">
       <div
@@ -48,13 +75,14 @@ export default function Home() {
         </aside>
         <div
           className="w-1 cursor-col-resize bg-transparent hover:bg-neon-purple/50 transition-colors z-10"
+          data-testid="sidebar-resize-handle"
           onPointerDown={(event) => {
             event.preventDefault()
             setDragging(true)
           }}
         />
-        <div className="flex-1 min-h-0 relative h-full w-full min-w-0">
-          <ModelWorkspace />
+        <div ref={workspaceRef} className="flex-1 min-h-0 relative h-full w-full min-w-0" data-testid="workspace-host">
+          <ModelWorkspace containerWidth={workspaceWidth} />
         </div>
       </div>
     </section>
