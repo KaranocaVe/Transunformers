@@ -1,56 +1,207 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
-test('selects a model and renders graph with inspector', async ({ page }) => {
+import {
+  boxesOverlap,
+  clearSelectedModel,
+  clickEmptyCanvasSpace,
+  clickNodeById,
+  doubleClickNodeById,
+  dragSidebarTo,
+  expectNodesWithinCanvas,
+  getFirstCollapsedNodeId,
+  getGraphNodeCount,
+  getLayoutRevision,
+  getNodeBox,
+  getRenderedEdgePaths,
+  getVisibleLabels,
+  installDeterministicGraphRoutes,
+  LONG_LABEL_NODE_IDS,
+  MODEL_IDS,
+  selectModel,
+  setLayoutDirection,
+  setSortBy,
+  setViewMode,
+  waitForWorkspaceReady,
+} from './graph-harness'
+
+test('handles empty and single-node graph states without stale leftovers', async ({ page }) => {
+  await installDeterministicGraphRoutes(page)
   await page.goto('/')
 
-  const firstItem = page.getByTestId('model-item').first()
-  await expect(firstItem).toBeVisible({ timeout: 30_000 })
-  await firstItem.click()
+  await expect(page.getByTestId('workspace-empty')).toBeVisible()
 
-  await expect(page.getByTestId('workspace')).toBeVisible()
-  await expect(page.getByTestId('workspace-title')).toBeVisible()
+  await selectModel(page, MODEL_IDS.single)
+  await waitForWorkspaceReady(page, MODEL_IDS.single)
+  await expect(page.getByTestId('workspace-title')).toContainText('SingleNodeModel')
+  await expect.poll(async () => await getGraphNodeCount(page)).toBe(1)
+  await expectNodesWithinCanvas(page)
 
-  await page.waitForSelector('[data-testid="module-node"]', {
-    timeout: 30_000,
-  })
+  await selectModel(page, MODEL_IDS.empty)
+  await waitForWorkspaceReady(page, MODEL_IDS.empty, { expectNodes: false })
+  await expect(page.getByTestId('workspace-title')).toContainText('EmptyGraphModel')
+  await expect(page.getByTestId('graph-canvas')).toBeVisible()
+  await expect(page.locator('[data-testid="module-node"], [data-testid="group-node"]')).toHaveCount(0)
+  await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-edge-count', '0')
 
-  const clickPoint = await page.evaluate(() => {
-    const canvas = document.querySelector('[data-testid="graph-canvas"]')
-    if (!canvas) return null
-    const canvasRect = canvas.getBoundingClientRect()
-    const nodes = Array.from(
-      document.querySelectorAll<HTMLElement>('[data-testid="module-node"]'),
-    )
-    const target =
-      nodes.find((node) => {
-        const rect = node.getBoundingClientRect()
-        return (
-          rect.width > 0 &&
-          rect.height > 0 &&
-          rect.right > canvasRect.left + 12 &&
-          rect.left < canvasRect.right - 12 &&
-          rect.bottom > canvasRect.top + 12 &&
-          rect.top < canvasRect.bottom - 12
-        )
-      }) ?? nodes[0]
-    if (!target) return null
-    const rect = target.getBoundingClientRect()
-    return {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    }
-  })
+  await clearSelectedModel(page)
+  await expect(page.getByTestId('workspace-empty')).toBeVisible()
+})
 
-  if (!clickPoint) {
-    throw new Error('No module node available to select')
-  }
+test('refits complex graphs after resize, selection, relayout, and collapsed-stack toggles', async ({ page }) => {
+  await installDeterministicGraphRoutes(page)
+  await page.goto('/')
 
-  await page.mouse.click(clickPoint.x, clickPoint.y)
+  await selectModel(page, MODEL_IDS.collapsed)
+  await waitForWorkspaceReady(page, MODEL_IDS.collapsed)
+  await expectNodesWithinCanvas(page)
+
+  const collapsedNodeId = await getFirstCollapsedNodeId(page)
+  await expect(
+    page.locator(`[data-testid="group-node"][data-id="collapsed.encoder"][data-expanded="true"]`),
+  ).toBeVisible()
+  await clickNodeById(page, collapsedNodeId)
   await expect(page.getByTestId('inspector')).toBeVisible()
   await expect(page.getByTestId('inspector-title')).toBeVisible()
 
-  await page.screenshot({
-    path: test.info().outputPath('screenshots/graph.png'),
-    fullPage: true,
+  const stableRevision = await getLayoutRevision(page)
+  for (const targetX of [300, 520, 340, 480]) {
+    await dragSidebarTo(page, targetX)
+    await expectNodesWithinCanvas(page)
+    await expect.poll(async () => await getLayoutRevision(page)).toBe(stableRevision)
+    await expect(
+      page.locator(
+        `[data-testid="module-node"][data-id="${collapsedNodeId}"][data-selected="true"]`,
+      ),
+    ).toBeVisible()
+  }
+
+  await setSortBy(page, 'name')
+  await expect.poll(async () => await getLayoutRevision(page)).toBe(stableRevision)
+  await expect(
+    page.locator(`[data-testid="module-node"][data-id="${collapsedNodeId}"][data-selected="true"]`),
+  ).toBeVisible()
+
+  await clickEmptyCanvasSpace(page)
+  await expect(page.getByTestId('inspector')).toBeHidden()
+  await expectNodesWithinCanvas(page)
+
+  const relayoutRevision = await getLayoutRevision(page)
+  await setLayoutDirection(page, 'RIGHT')
+  await expect.poll(async () => await getLayoutRevision(page)).toBeGreaterThan(relayoutRevision)
+  await waitForWorkspaceReady(page, MODEL_IDS.collapsed)
+  await expect(page.getByTestId('workspace')).toHaveAttribute('data-layout-direction', 'RIGHT')
+  await expectNodesWithinCanvas(page)
+
+  const expandedNodeCount = await getGraphNodeCount(page)
+  const collapseRevision = await getLayoutRevision(page)
+  await doubleClickNodeById(page, collapsedNodeId)
+  await expect.poll(async () => await getLayoutRevision(page)).toBeGreaterThan(collapseRevision)
+  await expect(
+    page.locator(`[data-testid="group-node"][data-id="${collapsedNodeId}"][data-expanded="true"]`),
+  ).toBeVisible()
+  await expect.poll(async () => await getGraphNodeCount(page)).toBeGreaterThan(expandedNodeCount)
+  await expectNodesWithinCanvas(page)
+
+  const expandedStackNodeCount = await getGraphNodeCount(page)
+  const expandRevision = await getLayoutRevision(page)
+  await page
+    .locator(`[data-testid="group-node"][data-id="${collapsedNodeId}"]`)
+    .dblclick({ position: { x: 24, y: 24 } })
+  await expect.poll(async () => await getLayoutRevision(page)).toBeGreaterThan(expandRevision)
+  await expect(
+    page.locator(`[data-testid="module-node"][data-id="${collapsedNodeId}"][data-expanded="false"]`),
+  ).toBeVisible()
+  await expect.poll(async () => await getGraphNodeCount(page)).toBeLessThan(expandedStackNodeCount)
+  await expectNodesWithinCanvas(page)
+})
+
+test('keeps a deterministic disconnected-branch scenario visible and stable', async ({ page }) => {
+  await installDeterministicGraphRoutes(page)
+  await page.goto('/')
+
+  await selectModel(page, MODEL_IDS.disconnected)
+  await waitForWorkspaceReady(page, MODEL_IDS.disconnected)
+  await expect(page.getByTestId('workspace-title')).toContainText('DisconnectedBranchesModel')
+  await expectNodesWithinCanvas(page)
+
+  await expect
+    .poll(async () => {
+      const labels = await getVisibleLabels(page)
+      return [
+        labels.includes('DisconnectedLeftLeaf'),
+        labels.includes('DisconnectedRightLeaf'),
+        labels.includes('disconnected_bridge_probe'),
+      ]
+    })
+    .toEqual([true, true, true])
+
+  await expect.poll(async () => await getGraphNodeCount(page)).toBeGreaterThan(4)
+})
+
+test('keeps long labels separated and parallel branches on distinct routed edges', async ({ page }) => {
+  await installDeterministicGraphRoutes(page)
+  await page.goto('/')
+
+  await selectModel(page, MODEL_IDS.longLabel)
+  await waitForWorkspaceReady(page, MODEL_IDS.longLabel)
+  await expectNodesWithinCanvas(page)
+
+  const attentionNode = await getNodeBox(page, LONG_LABEL_NODE_IDS.attention)
+  const feedForwardNode = await getNodeBox(page, LONG_LABEL_NODE_IDS.feedForward)
+
+  expect(attentionNode.width).toBeGreaterThan(240)
+  expect(feedForwardNode.width).toBeGreaterThan(240)
+  expect(boxesOverlap(attentionNode, feedForwardNode)).toBe(false)
+
+  await selectModel(page, MODEL_IDS.parallel)
+  await waitForWorkspaceReady(page, MODEL_IDS.parallel)
+  await expectNodesWithinCanvas(page)
+
+  await expect.poll(async () => (await getRenderedEdgePaths(page)).length).toBe(2)
+  const edgePaths = await getRenderedEdgePaths(page)
+
+  expect(new Set(edgePaths.map((edge) => edge.d)).size).toBe(edgePaths.length)
+  expect(edgePaths.every((edge) => edge.routingOwner === 'elk')).toBe(true)
+})
+
+test('ignores stale manifest and chunk responses during rapid graph interactions', async ({ page }) => {
+  await installDeterministicGraphRoutes(page, {
+    manifestDelays: {
+      [`${MODEL_IDS.collapsed}/model.json`]: 350,
+    },
+    chunkDelays: {
+      [`${MODEL_IDS.chunked}/chunks/modules.compact_tree.json`]: 350,
+      [`${MODEL_IDS.chunked}/chunks/modules.tree.json`]: 25,
+    },
   })
+  await page.goto('/')
+
+  const delayedManifestRequest = page.waitForRequest(`**/data/models/${MODEL_IDS.collapsed}/model.json`)
+  await selectModel(page, MODEL_IDS.collapsed)
+  await delayedManifestRequest
+
+  await selectModel(page, MODEL_IDS.parallel)
+  await waitForWorkspaceReady(page, MODEL_IDS.parallel)
+  await expect(page.getByTestId('workspace-title')).toContainText('ParallelRoutesModel')
+  await expectNodesWithinCanvas(page)
+  await expect.poll(async () => (await getVisibleLabels(page)).some((label) => label.includes('Collapsed'))).toBe(false)
+  await expect.poll(async () => (await getVisibleLabels(page)).some((label) => label.includes('Parallel'))).toBe(true)
+
+  const compactRequest = page.waitForRequest(
+    `**/data/models/${MODEL_IDS.chunked}/chunks/modules.compact_tree.json`,
+  )
+  await selectModel(page, MODEL_IDS.chunked)
+  await compactRequest
+
+  const fullRequest = page.waitForRequest(`**/data/models/${MODEL_IDS.chunked}/chunks/modules.tree.json`)
+  await setViewMode(page, 'full')
+  await fullRequest
+
+  await waitForWorkspaceReady(page, MODEL_IDS.chunked)
+  await expect(page.getByTestId('workspace')).toHaveAttribute('data-view-mode', 'full')
+  await expectNodesWithinCanvas(page)
+  await expect.poll(async () => (await getVisibleLabels(page)).some((label) => label.includes('GammaFullOnly'))).toBe(true)
+  await expect
+    .poll(async () => (await getVisibleLabels(page)).some((label) => label.includes('GammaCompactOnly')))
+    .toBe(false)
 })
