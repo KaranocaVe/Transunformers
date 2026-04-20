@@ -1,10 +1,12 @@
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
+const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env
+
 const resolveDevFsBase = () => {
-  if (!import.meta.env.DEV) {
+  if (!viteEnv?.DEV) {
     return null
   }
-  if (import.meta.env.VITE_DATA_USE_FS !== 'true') {
+  if (viteEnv.VITE_DATA_USE_FS !== 'true') {
     return null
   }
   if (typeof __DATA_FS_ROOT__ !== 'string' || __DATA_FS_ROOT__.length === 0) {
@@ -17,7 +19,7 @@ const resolveDevFsBase = () => {
 export const resolveDataBaseUrl = () => {
   const runtimeOverride =
     typeof window !== 'undefined' ? window.__TRANSUNFORMERS_DATA_BASE__ : undefined
-  const envBase = import.meta.env.VITE_DATA_BASE_URL
+  const envBase = typeof viteEnv?.VITE_DATA_BASE_URL === 'string' ? viteEnv.VITE_DATA_BASE_URL : undefined
   const devBase = resolveDevFsBase()
   const baseUrl = runtimeOverride ?? envBase ?? devBase ?? '/data/models'
 
