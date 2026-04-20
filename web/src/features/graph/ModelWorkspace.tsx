@@ -20,7 +20,8 @@ import { layoutGraph } from './elk-layout'
 import { applySelectedNodeToLayoutNodes } from './selection'
 import { normalizeTree } from './tree'
 import type { GraphNodeData, RawNode } from './types'
-import { Maximize2, Search } from 'lucide-react'
+import { Maximize2, Search, Info } from 'lucide-react'
+import { branchLabelMap, quantityLabelMap, roleLabelMap } from './visuals'
 
 const nodeTypes = { module: ModuleNode, group: GroupNode }
 const edgeTypes = { flow: FlowEdge }
@@ -71,6 +72,7 @@ function GraphCanvas({
   onClearSelection: () => void
   fitViewKey?: string
 }) {
+  const { t } = useTranslation()
   const { fitView, getZoom } = useReactFlow()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const lastFitKeyRef = useRef<string | undefined>(undefined)
@@ -165,10 +167,10 @@ function GraphCanvas({
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-screen/50 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-3">
              <Spinner size="lg" />
-             <p className="text-xs font-mono text-text-muted">INITIALIZING...</p>
-           </div>
-        </div>
-      )}
+             <p className="text-xs font-mono text-text-muted">{t('workspace.initializing')}</p>
+            </div>
+         </div>
+       )}
 
       <ReactFlow
         nodes={nodes}
@@ -202,6 +204,9 @@ export const ModelWorkspace = memo(function ModelWorkspace({
   const toggleExpanded = useExplorerStore((state) => state.toggleExpanded)
   const layoutDirection = useExplorerStore((state) => state.layoutDirection)
   const preferredViewMode = useExplorerStore((state) => state.viewMode)
+  const graphColorMode = useExplorerStore((state) => state.graphColorMode)
+  const showGraphLegend = useExplorerStore((state) => state.showGraphLegend)
+  const setShowGraphLegend = useExplorerStore((state) => state.setShowGraphLegend)
 
   const { data: manifest, isLoading: manifestLoading } = useModelManifest(selectedModelId, {
     gcTime: graphQueryGcTime,
@@ -438,12 +443,13 @@ export const ModelWorkspace = memo(function ModelWorkspace({
     selectedModelId,
     viewMode,
   ])
+  const legendRoles = ['input', 'encoder', 'decoder', 'block', 'norm', 'head', 'aux'] as const
 
   if (selectedModelId && isChunked && treeQuery.error) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-bg text-center" data-testid="workspace-error">
         <div className="max-w-md space-y-2">
-          <h3 className="text-text-main font-medium text-sm">Failed to load model graph</h3>
+          <h3 className="text-text-main font-medium text-sm">{t('workspace.loadError')}</h3>
           <p className="text-xs text-text-muted">{String(treeQuery.error)}</p>
           <p className="text-[10px] font-mono text-text-dim">
             Chunk: {treeChunkKey ?? 'unknown'}
@@ -495,9 +501,18 @@ export const ModelWorkspace = memo(function ModelWorkspace({
         </div>
         
         <div className="flex items-center gap-2">
+           <Button
+             size="sm"
+             variant={showGraphLegend ? 'solid' : 'light'}
+             className={showGraphLegend ? 'bg-brand-primary text-white' : 'text-text-muted hover:text-text-main'}
+             startContent={<Info size={14} />}
+             onPress={() => setShowGraphLegend(!showGraphLegend)}
+           >
+              {showGraphLegend ? t('settings.legendHide') : t('settings.legendShow')}
+            </Button>
            <Button size="sm" variant="light" isIconOnly className="text-text-muted hover:text-text-main">
-              <Maximize2 size={16} />
-           </Button>
+               <Maximize2 size={16} />
+            </Button>
            {manifest && (
             <div className="flex items-center gap-3 text-xs font-mono text-text-muted border-l border-border pl-3 ml-2">
                <div>{t('workspace.params', { value: formatNumber(manifest.model.parameters?.count ?? 0) })}</div>
@@ -509,6 +524,55 @@ export const ModelWorkspace = memo(function ModelWorkspace({
       <div className="flex-1 flex min-h-0 relative">
         {/* Graph Area */}
         <div className="flex-1 min-w-0 h-full relative">
+          {showGraphLegend && (
+            <div className="pointer-events-none absolute right-3 top-3 z-10 w-72 rounded-2xl border border-border bg-panel-bg/94 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.12)] backdrop-blur-sm">
+              <div className="mb-3 flex items-center gap-2 text-xs font-medium text-text-main">
+                <Info size={14} className="text-brand-primary" />
+                {t('workspace.guideTitle')}
+              </div>
+              <div className="space-y-4 text-[11px] text-text-muted">
+                <div>
+                  <div className="mb-2 font-mono uppercase tracking-[0.14em] text-text-dim">{t('workspace.guideCurrentView')}</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-border bg-bg px-3 py-2">
+                      <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">{t('workspace.guideLayout')}</div>
+                      <div className="mt-1 text-text-main">{layoutDirection === 'DOWN' ? t('settings.layoutVertical') : t('settings.layoutHorizontal')}</div>
+                    </div>
+                    <div className="rounded-xl border border-border bg-bg px-3 py-2">
+                      <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">{t('workspace.guideDensity')}</div>
+                      <div className="mt-1 text-text-main">{viewMode === 'full' ? t('workspace.guideFull') : t('workspace.guideCompact')}</div>
+                    </div>
+                    <div className="col-span-2 rounded-xl border border-border bg-bg px-3 py-2">
+                      <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">{t('workspace.guideColorMode')}</div>
+                      <div className="mt-1 text-text-main">{t(quantityLabelMap[graphColorMode])}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 font-mono uppercase tracking-[0.14em] text-text-dim">{t('workspace.guideNodeRoles')}</div>
+                  <div className="space-y-1.5">
+                    {legendRoles.map((role) => (
+                      <div key={role} className="flex items-center gap-2">
+                        <span className={`h-2.5 w-2.5 rounded-full ${role === 'input' ? 'bg-cyan-500' : role === 'encoder' ? 'bg-indigo-500' : role === 'decoder' ? 'bg-violet-500' : role === 'block' ? 'bg-emerald-500' : role === 'norm' ? 'bg-amber-500' : role === 'head' ? 'bg-rose-500' : 'bg-slate-500'}`} />
+                        <span className="text-text-main">{t(roleLabelMap[role])}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 font-mono uppercase tracking-[0.14em] text-text-dim">{t('workspace.guideFlowCues')}</div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2"><span className="h-px w-6 bg-[#6366f1]" /><span className="text-text-main">{t(branchLabelMap.sequential)}</span></div>
+                    <div className="flex items-center gap-2"><span className="h-px w-6 border-t-2 border-dashed border-[#8b5cf6]" /><span className="text-text-main">{t(branchLabelMap.parallel)}</span></div>
+                    <div className="flex items-center gap-2"><span className="h-px w-6 border-t-2 border-dashed border-[#f59e0b]" /><span className="text-text-main">{t(branchLabelMap.bridge)}</span></div>
+                    <div className="pt-1 leading-5 text-text-muted">{t('workspace.guideDescription')}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <ReactFlowProvider>
             <GraphCanvas
               nodes={layoutState.nodes}
