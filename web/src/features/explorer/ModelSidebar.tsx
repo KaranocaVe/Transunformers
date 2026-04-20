@@ -20,7 +20,10 @@ import {
 
 export function ModelSidebar() {
   const { data: index, isLoading } = useModelIndex()
-  const { selectedModelId, setSelectedModelId, sortBy, setSortBy } = useExplorerStore()
+  const selectedModelId = useExplorerStore((state) => state.selectedModelId)
+  const setSelectedModelId = useExplorerStore((state) => state.setSelectedModelId)
+  const sortBy = useExplorerStore((state) => state.sortBy)
+  const setSortBy = useExplorerStore((state) => state.setSortBy)
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   
@@ -67,10 +70,11 @@ export function ModelSidebar() {
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="text-text-muted group-focus-within:text-brand-primary transition-colors" size={14} />
               </div>
-              <input
-               type="text"
-               value={search}
-               onChange={(e) => setSearch(e.target.value)}
+               <input
+                data-testid="model-search"
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                placeholder="Search models..."
                className="block w-full rounded-md bg-bg border border-border py-1.5 pl-9 pr-3 text-xs text-text-main placeholder:text-text-muted focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all font-mono"
               />
@@ -105,12 +109,16 @@ export function ModelSidebar() {
           ) : filteredModels?.map((model) => {
               const isSelected = selectedModelId === model.id
               return (
-                  <div
-                    key={model.id}
-                    onClick={() => setSelectedModelId(model.id)}
-                    className={`
-                        group relative rounded-md border p-2 cursor-pointer transition-all duration-200
-                        ${isSelected 
+                   <div
+                     key={model.id}
+                     onClick={() => setSelectedModelId(model.id)}
+                     data-testid="model-item"
+                     data-model-id={model.id}
+                     data-safe-id={model.safe_id}
+                     data-selected={isSelected ? 'true' : 'false'}
+                     className={`
+                         group relative rounded-md border p-2 cursor-pointer transition-all duration-200
+                         ${isSelected 
                            ? 'bg-brand-primary/5 border-brand-primary/30 shadow-sm' 
                            : 'bg-panel-bg border-border hover:border-text-muted/50 hover:bg-black/5 dark:hover:bg-white/5'
                         }

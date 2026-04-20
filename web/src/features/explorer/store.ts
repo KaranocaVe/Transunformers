@@ -26,7 +26,7 @@ type ExplorerState = {
   setSortBy: (mode: SortMode) => void
   setModelTypeFilter: (values: string[]) => void
   setMappingFilter: (values: string[]) => void
-  toggleExpanded: (nodeId: string) => void
+  toggleExpanded: (nodeId: string, isExpanded: boolean) => void
   clearExpanded: () => void
   setSidebarWidth: (width: number) => void
   setShowFilters: (show: boolean) => void
@@ -44,12 +44,13 @@ export const useExplorerStore = create<ExplorerState>((set) => ({
   sidebarWidth: 360,
   showFilters: false,
   setSelectedModelId: (modelId) =>
-    set({
+    set((state) => ({
       selectedModelId: modelId,
       selectedNodeId: undefined,
-      expandedNodes: {},
+      expandedNodes:
+        state.selectedModelId === modelId ? state.expandedNodes : {},
       zoom: 1,
-    }),
+    })),
   setSelectedNodeId: (nodeId) => set({ selectedNodeId: nodeId }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setLayoutDirection: (direction) => set({ layoutDirection: direction }),
@@ -58,11 +59,11 @@ export const useExplorerStore = create<ExplorerState>((set) => ({
   setSortBy: (mode) => set({ sortBy: mode }),
   setModelTypeFilter: (values) => set({ modelTypeFilter: values }),
   setMappingFilter: (values) => set({ mappingFilter: values }),
-  toggleExpanded: (nodeId) =>
+  toggleExpanded: (nodeId, isExpanded) =>
     set((state) => ({
       expandedNodes: {
         ...state.expandedNodes,
-        [nodeId]: !state.expandedNodes[nodeId],
+        [nodeId]: !isExpanded,
       },
     })),
   clearExpanded: () => set({ expandedNodes: {} }),
