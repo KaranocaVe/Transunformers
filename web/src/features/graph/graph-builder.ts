@@ -18,6 +18,7 @@ export const FLOW_EDGE_ROUTING_OWNER = 'elk' as const
 
 export type FlowEdgeData = {
   kind: 'flow'
+  branchHint?: 'sequential' | 'parallel' | 'bridge'
   routingOwner?: typeof FLOW_EDGE_ROUTING_OWNER
   route?: {
     owner: typeof FLOW_EDGE_ROUTING_OWNER
@@ -42,6 +43,8 @@ export type Stage =
   | 'head'
   | 'aux'
 
+type BranchHint = 'sequential' | 'parallel' | 'bridge'
+
 export const GRAPH_NODE_SIZE_CONTRACT = {
   labelBaseWidth: 170,
   labelCharacterWidth: 7,
@@ -51,6 +54,8 @@ export const GRAPH_NODE_SIZE_CONTRACT = {
     baseHeight: 72,
     classNameHeight: 18,
     metricsHeight: 20,
+    semanticHeight: 22,
+    summaryHeight: 24,
   },
   collapsed: {
     minWidth: 220,
@@ -58,6 +63,8 @@ export const GRAPH_NODE_SIZE_CONTRACT = {
     baseHeight: 72,
     classNameHeight: 18,
     metricsHeight: 20,
+    semanticHeight: 22,
+    summaryHeight: 24,
   },
   container: {
     minWidth: 300,
@@ -86,15 +93,20 @@ const estimateLabelWidth = (
   )
 
 const resolveLeafNodeHeight = (node: TreeNode) => {
-  let height = GRAPH_NODE_SIZE_CONTRACT.leaf.baseHeight
+  const contract = node.kind === 'collapsed' ? GRAPH_NODE_SIZE_CONTRACT.collapsed : GRAPH_NODE_SIZE_CONTRACT.leaf
+  let height = contract.baseHeight + contract.semanticHeight
   if (node.className) {
-    height += GRAPH_NODE_SIZE_CONTRACT.leaf.classNameHeight
+    height += contract.classNameHeight
   }
 
   const params = node.parameters?.total?.count ?? node.parameters?.self?.count ?? 0
   const buffers = node.buffers?.total?.count ?? node.buffers?.self?.count ?? 0
   if (params > 0 || buffers > 0) {
-    height += GRAPH_NODE_SIZE_CONTRACT.leaf.metricsHeight
+    height += contract.metricsHeight
+  }
+
+  if (node.kind === 'collapsed' || (node.tags?.length ?? 0) > 0) {
+    height += contract.summaryHeight
   }
 
   return height
@@ -211,6 +223,25 @@ const resolveExplicitStage = (node: TreeNode): Stage | null => {
 
 const resolveParamCount = (node: TreeNode) =>
   node.parameters?.total?.count ?? node.parameters?.self?.count ?? 0
+
+const resolveBufferCount = (node: TreeNode) =>
+  node.buffers?.total?.count ?? node.buffers?.self?.count ?? 0
+
+const resolveParameterScale = (count: number): 'tiny' | 'small' | 'medium' | 'large' | 'huge' | null => {
+  if (count <= 0) return null
+  if (count >= 10_000_000_000) return 'huge'
+  if (count >= 1_000_000_000) return 'large'
+  if (count >= 100_000_000) return 'medium'
+  if (count >= 10_000_000) return 'small'
+  return 'tiny'
+}
+
+const resolveBufferScale = (count: number): 'none' | 'low' | 'medium' | 'high' => {
+  if (count <= 0) return 'none'
+  if (count >= 10_000_000) return 'high'
+  if (count >= 1_000_000) return 'medium'
+  return 'low'
+}
 
 const resolveStage = (node: TreeNode, cache: Map<string, Stage>): Stage => {
   const cached = cache.get(node.id)
@@ -350,6 +381,105 @@ const isConnectorNode = (node: TreeNode) => {
   )
 }
 
+type NodeSummary = {
+  moduleCount: number
+  layerCount: number
+  parameterCount: number
+  bufferCount: number
+  trainableCount: number
+  trainableRatio: number | null
+}
+
+const resolveTrainableCount = (node: TreeNode) =>
+  node.parameters?.total?.trainable ?? node.parameters?.self?.trainable ?? 0
+
+const summarizeNodeTree = (node: TreeNode, cache: Map<string, NodeSummary>): NodeSummary => {
+  const cached = cache.get(node.id)
+  if (cached) {
+    return cached
+  }
+
+  const ownParams = resolveParamCount(node)
+  const ownBuffers = resolveBufferCount(node)
+  const childSummaries = node.children.map((child) => summarizeNodeTree(child, cache))
+  const ownTrainable = resolveTrainableCount(node)
+  const moduleCount =
+    childSummaries.length > 0
+      ? childSummaries.reduce((total, child) => total + child.moduleCount, 0)
+      : 1
+  const repeatedLayerCount = node.kind === 'collapsed' ? node.repeat ?? 0 : 0
+  const layerCount =
+    repeatedLayerCount > 0
+      ? repeatedLayerCount
+      : childSummaries.length > 0
+        ? childSummaries.reduce((total, child) => total + child.layerCount, 0)
+        : node.index !== null && node.index !== undefined
+          ? 1
+          : 0
+  const parameterCount =
+    ownParams > 0 ? ownParams : childSummaries.reduce((total, child) => total + child.parameterCount, 0)
+  const bufferCount =
+    ownBuffers > 0 ? ownBuffers : childSummaries.reduce((total, child) => total + child.bufferCount, 0)
+  const trainableCount =
+    ownParams > 0 ? ownTrainable : childSummaries.reduce((total, child) => total + child.trainableCount, 0)
+  const trainableRatio = parameterCount > 0 ? trainableCount / parameterCount : null
+
+  const summary: NodeSummary = {
+    moduleCount,
+    layerCount,
+    parameterCount,
+    bufferCount,
+    trainableCount,
+    trainableRatio,
+  }
+
+  cache.set(node.id, summary)
+  return summary
+}
+
+const formatCompactNumber = (value: number) => {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(value >= 10_000_000_000 ? 0 : 1)}B`
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`
+  if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 10_000 ? 0 : 1)}K`
+  return `${value}`
+}
+
+const resolveSummaryLines = (node: TreeNode, summary: NodeSummary, branchHint: BranchHint | null) => {
+  const lines: string[] = []
+  if (summary.layerCount > 0) {
+    lines.push(`${summary.layerCount}L`)
+  }
+  if (summary.parameterCount > 0) {
+    lines.push(`${formatCompactNumber(summary.parameterCount)}P`)
+  }
+
+  if (node.kind === 'collapsed' && node.repeat && node.repeat > 1) {
+    lines.push(`x${node.repeat}`)
+  } else if (branchHint === 'parallel') {
+    lines.push('||')
+  } else if (branchHint === 'bridge') {
+    lines.push('↔')
+  }
+
+  return lines.slice(0, 3)
+}
+
+const resolveNodeBranchHint = (node: TreeNode): BranchHint | null => {
+  if (isConnectorNode(node)) {
+    return 'bridge'
+  }
+
+  if (node.children.length < 2) {
+    return null
+  }
+
+  if (isParallelContainer(node) || hasParallelBranches(node.children)) {
+    return 'parallel'
+  }
+
+  return 'sequential'
+}
+
 const hasParallelBranches = (children: TreeNode[]) => {
   const resolved = children.map((child) => ({
     child,
@@ -424,6 +554,8 @@ export const buildGraph = (
   const nodeMap = new Map<string, GraphNodeData>()
   const stageCache = new Map<string, Stage>()
   const expansionState = new Map<string, { isExpandable: boolean; isExpanded: boolean }>()
+  const summaryCache = new Map<string, NodeSummary>()
+  const branchHintMap = new Map<string, BranchHint>()
 
 
 
@@ -436,14 +568,18 @@ export const buildGraph = (
     className: 'edge-structure',
   })
 
-  const createFlowEdge = (source: string, target: string): Edge<FlowEdgeData> => ({
+  const createFlowEdge = (
+    source: string,
+    target: string,
+    branchHint: BranchHint,
+  ): Edge<FlowEdgeData> => ({
     id: `flow:${source}=>${target}`,
     source,
     target,
     type: 'flow',
     // Visible flow edges are the single routing source of truth:
     // ELK lays out exactly this set, and FlowEdge renders the returned route.
-    data: { kind: 'flow', routingOwner: FLOW_EDGE_ROUTING_OWNER },
+    data: { kind: 'flow', routingOwner: FLOW_EDGE_ROUTING_OWNER, branchHint },
     className: 'edge-flow',
     markerEnd: {
       type: MarkerType.ArrowClosed,
@@ -476,6 +612,8 @@ export const buildGraph = (
     const size = getGraphNodeSize(node)
     const stage = resolveStage(node, stageCache)
     const isContainer = isContainerNode(node)
+    const summary = summarizeNodeTree(node, summaryCache)
+    const branchHint = resolveNodeBranchHint(node)
     const nodeExpansionState = expansionState.get(node.id) ?? {
       isExpandable: node.kind === 'collapsed' || node.children.length > 0,
       isExpanded: false,
@@ -501,6 +639,13 @@ export const buildGraph = (
       hasChildren: node.children.length > 0 || node.kind === 'collapsed',
       isExpandable: nodeExpansionState.isExpandable,
       isExpanded: nodeExpansionState.isExpanded,
+      moduleCount: summary.moduleCount,
+      layerCount: summary.layerCount,
+      branchHint,
+      summaryLines: resolveSummaryLines(node, summary, branchHint),
+      parameterScale: resolveParameterScale(summary.parameterCount),
+      bufferScale: resolveBufferScale(summary.bufferCount),
+      trainableRatio: summary.trainableRatio,
     }
     nodeMap.set(node.id, data)
     nodes.push({
@@ -530,17 +675,24 @@ export const buildGraph = (
 
     if (flowMode.mode === 'indexed') {
       const ordered = flowMode.order
+      branchHintMap.set(node.id, isConnectorNode(node) ? 'bridge' : 'sequential')
       for (let index = 0; index < ordered.length - 1; index += 1) {
         const from = ordered[index]
         const to = ordered[index + 1]
-        const edge = createFlowEdge(from.id, to.id)
+        const edgeHint: BranchHint = isConnectorNode(from) || isConnectorNode(to) ? 'bridge' : 'sequential'
+        branchHintMap.set(from.id, branchHintMap.get(from.id) ?? edgeHint)
+        branchHintMap.set(to.id, branchHintMap.get(to.id) ?? edgeHint)
+        const edge = createFlowEdge(from.id, to.id, edgeHint)
         flowEdges.push(edge)
       }
     }
 
     for (const child of children) {
       if (flowMode.mode === 'parallel') {
-        flowEdges.push(createFlowEdge(node.id, child.id))
+        const edgeHint: BranchHint = isConnectorNode(child) ? 'bridge' : 'parallel'
+        branchHintMap.set(node.id, edgeHint)
+        branchHintMap.set(child.id, edgeHint)
+        flowEdges.push(createFlowEdge(node.id, child.id, edgeHint))
       } else {
         structureEdges.push(createStructureEdge(node.id, child.id))
       }

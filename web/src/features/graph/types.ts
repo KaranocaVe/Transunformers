@@ -87,4 +87,9 @@ export type GraphNodeData = {
     count: number
   }>
   stackId?: string
+  branchHint?: 'sequential' | 'parallel' | 'bridge' | null
+  summaryLines?: string[]
+  parameterScale?: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | null
+  bufferScale?: 'none' | 'low' | 'medium' | 'high'
+  trainableRatio?: number | null
 }
