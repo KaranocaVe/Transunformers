@@ -17,6 +17,7 @@ const resolveBadge = (data: GraphNodeData) => {
 export function ModuleNode({ data, selected }: NodeProps<GraphNodeData>) {
   const { t } = useTranslation()
   const graphColorMode = useExplorerStore((state) => state.graphColorMode)
+  const zoom = useExplorerStore((state) => state.zoom)
   const params = data.parameters?.total?.count
   const buffers = data.buffers?.total?.count
   const badge = resolveBadge(data)
@@ -28,6 +29,12 @@ export function ModuleNode({ data, selected }: NodeProps<GraphNodeData>) {
     data.trainableRatio !== null && data.trainableRatio !== undefined
       ? Math.round(data.trainableRatio * 100)
       : null
+  const isOverview = zoom < 0.42
+  const isMidZoom = zoom >= 0.42 && zoom < 0.75
+  const showChips = !isOverview
+  const showClassName = !isOverview
+  const showMetrics = !isOverview
+  const showSummary = !isOverview && !isMidZoom
   
   return (
     <div
@@ -88,15 +95,20 @@ export function ModuleNode({ data, selected }: NodeProps<GraphNodeData>) {
            <div className="font-semibold text-sm text-text-main truncate" title={data.label}>
               {data.label}
            </div>
-           <div className="mt-1 flex flex-wrap gap-1.5">
-             {branchLabel ? (
-               <span className="rounded-full bg-border/40 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
-                 {branchLabel}
-               </span>
-             ) : null}
-              {data.parameterScale && params ? (
-                <span className="rounded-full bg-bg px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
-                  P {data.parameterScale}
+            {showChips && <div className="mt-1 flex flex-wrap gap-1.5">
+              {branchLabel ? (
+                <span className="rounded-full bg-border/40 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
+                  {branchLabel}
+                </span>
+              ) : null}
+              {data.tagSummary?.map((tag) => (
+                <span key={tag} className="rounded-full bg-border/30 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-dim">
+                  {tag}
+                </span>
+              ))}
+               {data.parameterScale && params ? (
+                 <span className="rounded-full bg-bg px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
+                   P {data.parameterScale}
                 </span>
              ) : null}
              {data.bufferScale && data.bufferScale !== 'none' ? (
@@ -104,33 +116,33 @@ export function ModuleNode({ data, selected }: NodeProps<GraphNodeData>) {
                  B {data.bufferScale}
                </span>
              ) : null}
-             {trainablePercent !== null ? (
-               <span className="rounded-full bg-bg px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
-                 T {trainablePercent}%
-               </span>
-             ) : null}
-           </div>
-        </div>
+              {trainablePercent !== null ? (
+                <span className="rounded-full bg-bg px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.12em] text-text-muted">
+                  T {trainablePercent}%
+                </span>
+              ) : null}
+            </div>}
+         </div>
 
-        {/* Body */}
-        <div className="p-3 space-y-1.5">
-           {data.className && (
-             <div className="font-mono text-[11px] text-text-muted truncate" title={data.className}>
-               {data.className}
-             </div>
-           )}
-           
-           {(params || buffers) && (
-              <div className="flex items-center gap-3 pt-1 text-[11px] font-mono text-text-dim">
-                 {params ? <span>{formatNumber(params)} P</span> : null}
-                 {buffers ? <span>{formatNumber(buffers)} B</span> : null}
+         {/* Body */}
+         <div className="p-3 space-y-1.5">
+           {showClassName && data.className && (
+              <div className="font-mono text-[11px] text-text-muted truncate" title={data.className}>
+                {data.className}
               </div>
             )}
+            
+           {showMetrics && (params || buffers) && (
+               <div className="flex items-center gap-3 pt-1 text-[11px] font-mono text-text-dim">
+                  {params ? <span>{formatNumber(params)} P</span> : null}
+                  {buffers ? <span>{formatNumber(buffers)} B</span> : null}
+               </div>
+             )}
 
-            {data.summaryLines && data.summaryLines.length > 0 ? (
-              <div className="space-y-0.5 pt-1 text-[10px] text-text-muted">
-                {data.summaryLines.map((line) => (
-                  <div key={line}>{line}</div>
+            {showSummary && data.summaryLines && data.summaryLines.length > 0 ? (
+               <div className="space-y-0.5 pt-1 text-[10px] text-text-muted">
+                 {data.summaryLines.map((line) => (
+                   <div key={line}>{line}</div>
                 ))}
               </div>
             ) : null}

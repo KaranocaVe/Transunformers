@@ -9,6 +9,7 @@ export function GroupNode({ data, selected }: NodeProps<GraphNodeData>) {
   const { t } = useTranslation()
   const toggleExpanded = useExplorerStore((state) => state.toggleExpanded)
   const graphColorMode = useExplorerStore((state) => state.graphColorMode)
+  const zoom = useExplorerStore((state) => state.zoom)
   const handleDoubleClick = () => {
     if (!data.isExpandable) {
       return
@@ -20,6 +21,7 @@ export function GroupNode({ data, selected }: NodeProps<GraphNodeData>) {
   const tone = getNodeTone(data, graphColorMode)
   const roleLabel = data.role ? t(roleLabelMap[data.role]) : null
   const branchLabel = data.branchHint ? t(branchLabelMap[data.branchHint]) : null
+  const isOverview = zoom < 0.42
 
   return (
     <div
@@ -62,8 +64,11 @@ export function GroupNode({ data, selected }: NodeProps<GraphNodeData>) {
             <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider ${tone.badge}`}>
               {data.label}
             </span>
-            {roleLabel ? <span className={`text-[10px] font-medium ${tone.text}`}>{roleLabel}</span> : null}
-            {branchLabel ? <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-text-dim">{branchLabel}</span> : null}
+            {!isOverview && roleLabel ? <span className={`text-[10px] font-medium ${tone.text}`}>{roleLabel}</span> : null}
+            {!isOverview && branchLabel ? <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-text-dim">{branchLabel}</span> : null}
+            {!isOverview && data.tagSummary?.map((tag) => (
+              <span key={tag} className="text-[9px] font-mono uppercase tracking-[0.12em] text-text-dim">{tag}</span>
+            ))}
           </div>
       </div>
     </div>
