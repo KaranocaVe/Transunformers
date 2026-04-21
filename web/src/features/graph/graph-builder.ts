@@ -49,27 +49,27 @@ export const GRAPH_NODE_SIZE_CONTRACT = {
   labelBaseWidth: 170,
   labelCharacterWidth: 7,
   leaf: {
-    minWidth: 220,
-    maxWidth: 380,
-    baseHeight: 72,
-    classNameHeight: 18,
-    metricsHeight: 20,
-    semanticHeight: 22,
-    summaryHeight: 24,
+    minWidth: 190,
+    maxWidth: 340,
+    baseHeight: 62,
+    classNameHeight: 16,
+    metricsHeight: 16,
+    semanticHeight: 18,
+    summaryHeight: 18,
   },
   collapsed: {
-    minWidth: 220,
-    maxWidth: 380,
-    baseHeight: 72,
-    classNameHeight: 18,
-    metricsHeight: 20,
-    semanticHeight: 22,
-    summaryHeight: 24,
+    minWidth: 190,
+    maxWidth: 340,
+    baseHeight: 62,
+    classNameHeight: 16,
+    metricsHeight: 16,
+    semanticHeight: 18,
+    summaryHeight: 18,
   },
   container: {
-    minWidth: 300,
-    maxWidth: 520,
-    height: 130,
+    minWidth: 250,
+    maxWidth: 420,
+    height: 96,
   },
 } as const
 
@@ -480,6 +480,16 @@ const resolveNodeBranchHint = (node: TreeNode): BranchHint | null => {
   return 'sequential'
 }
 
+const resolveTagSummary = (tags: string[] | null | undefined) => {
+  if (!tags || tags.length === 0) {
+    return undefined
+  }
+
+  const priority = ['expert', 'router', 'bridge', 'multimodal', 'vision', 'audio', 'text', 'input', 'output', 'trunk']
+  const picked = priority.filter((tag) => tags.includes(tag)).slice(0, 2)
+  return picked.length > 0 ? picked : undefined
+}
+
 const hasParallelBranches = (children: TreeNode[]) => {
   const resolved = children.map((child) => ({
     child,
@@ -635,6 +645,7 @@ export const buildGraph = (
       parameterDetails: node.parameterDetails,
       bufferDetails: node.bufferDetails,
       tags: node.tags,
+      tagSummary: resolveTagSummary(node.tags),
       synthetic: node.synthetic,
       hasChildren: node.children.length > 0 || node.kind === 'collapsed',
       isExpandable: nodeExpansionState.isExpandable,
