@@ -79,5 +79,5 @@ playwright-report/
 
 
 # Project outputs
-/data/models/
+/data/
 /web/public/data/
