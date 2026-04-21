@@ -3,6 +3,9 @@ Parse, catalog, and visualize Transformer architectures. Transunformers turns Hu
 models into structured JSON artifacts (module trees, parameter/buffer summaries, optional
 forward-call traces) and powers a web UI for exploration.
 
+<img width="2776" height="1654" alt="image" src="https://github.com/user-attachments/assets/18afe73a-6ab9-497d-ae1e-5309f249ffc4" />
+
+
 ## Highlights
 - Parse one or many models into a normalized JSON schema.
 - Config-only parsing to avoid weight downloads.
