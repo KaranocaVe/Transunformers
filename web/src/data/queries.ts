@@ -1,10 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { modelDataClient } from './client'
-import type { ModelIndex, ModelManifest, ModelChunkData } from './types'
+import type { ModelIndex, ModelManifest, ModelChunkData, RawTraceNode } from './types'
 
 type ModelQueryOptions = {
   gcTime?: number
+}
+
+type ModelTraceSummaryOptions = ModelQueryOptions & {
+  enabled?: boolean
+  manifest?: ModelManifest
 }
 
 export const useModelIndex = () =>
@@ -43,3 +48,14 @@ export const useModelChunk = (
     gcTime: options?.gcTime,
   })
 
+export const useModelTraceSummary = (identifier?: string, options?: ModelTraceSummaryOptions) =>
+  useQuery<RawTraceNode | null>({
+    queryKey: ['models', modelDataClient.baseUrl, 'trace-summary', identifier],
+    queryFn: ({ signal }) =>
+      modelDataClient.getTraceSummary(identifier ?? '', {
+        signal,
+        manifest: options?.manifest,
+      }),
+    enabled: Boolean(identifier) && (options?.enabled ?? true),
+    gcTime: options?.gcTime,
+  })

@@ -33,6 +33,12 @@ export type ChunkManifest = {
   items: ChunkItem[]
 }
 
+export type TraceManifest = {
+  enabled: boolean
+  summary_file?: string
+  full_file?: string
+}
+
 export type ModelSummary = {
   safe_id?: string
   class?: string | null
@@ -57,6 +63,7 @@ export type ModelManifest = {
   status: string
   warnings: string[]
   runtime?: Record<string, unknown>
+  trace?: TraceManifest
   model: ModelSummary
   modules?: { module_count?: number; [key: string]: unknown }
 
@@ -68,3 +75,17 @@ export type ModelManifest = {
 
 export type ModelChunkKey = string
 export type ModelChunkData = Record<string, unknown> | unknown[] | unknown
+
+export type TraceIOPrimitive = null | string | number | boolean
+export interface TraceIOMap {
+  [key: string]: TraceIOValue
+}
+export interface TraceIOList extends Array<TraceIOValue> {}
+export type TraceIOValue = TraceIOPrimitive | TraceIOList | TraceIOMap
+
+export type RawTraceNode = {
+  module_path: string
+  inputs?: TraceIOValue
+  outputs?: TraceIOValue
+  children?: RawTraceNode[]
+}

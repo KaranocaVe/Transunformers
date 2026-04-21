@@ -7,6 +7,7 @@ import type {
   ModelChunkKey,
   ModelChunkData,
   ChunkManifest,
+  RawTraceNode,
 } from './types'
 
 type ModelIdentifier = string | ModelIndexEntry
@@ -141,25 +142,29 @@ export class ModelDataClient {
     if (typeof identifier !== 'string') {
       return identifier
     }
+    await this.getIndex(signal)
+    const indexed = this.indexById.get(identifier) ?? this.indexBySafeId.get(identifier) ?? null
+    if (indexed) {
+      return indexed
+    }
     if (isPathLike(identifier)) {
       return null
     }
-    await this.getIndex(signal)
-    return this.indexById.get(identifier) ?? this.indexBySafeId.get(identifier) ?? null
+    return null
   }
 
-  private async resolveModelPath(identifier: ModelIdentifier, signal?: AbortSignal) {
+  private async resolveModelPath(identifier: ModelIdentifier, signal?: AbortSignal): Promise<string> {
     if (typeof identifier !== 'string') {
       return identifier.path
+    }
+    const entry = await this.resolveEntry(identifier, signal)
+    if (entry) {
+      return entry.path
     }
     if (isPathLike(identifier)) {
       return identifier
     }
-    const entry = await this.resolveEntry(identifier, signal)
-    if (!entry) {
-      throw new Error(`Unknown model identifier: ${identifier}`)
-    }
-    return entry.path
+    throw new Error(`Unknown model identifier: ${identifier}`)
   }
 
   async getIndex(signal?: AbortSignal) {
@@ -269,6 +274,26 @@ export class ModelDataClient {
       keys.map((key) => this.getChunk(identifier, key, { ...options, manifest })),
     )
     return Object.fromEntries(keys.map((key, index) => [key, chunks[index]]))
+  }
+
+  async getTraceSummary(
+    identifier: ModelIdentifier,
+    options?: { signal?: AbortSignal; manifest?: ModelManifest },
+  ) {
+    const manifest = options?.manifest ?? (await this.getManifest(identifier, options?.signal))
+    const summaryFile = manifest.trace?.summary_file
+    if (!manifest.trace?.enabled || !summaryFile) {
+      return null
+    }
+
+    const modelPath = await this.resolveModelPath(identifier, options?.signal)
+    const modelDir = getModelDir(modelPath)
+    const tracePath = joinUrl(modelDir, summaryFile)
+    const url = joinUrl(this.baseUrl, tracePath)
+    const compression = inferCompressionFromPath(summaryFile)
+    return compression === 'none'
+      ? this.fetchJson<RawTraceNode>(url, options?.signal)
+      : this.fetchCompressedJson<RawTraceNode>(url, compression, options?.signal)
   }
 
   releaseModel(identifier: ModelIdentifier, options?: ReleaseModelOptions) {
