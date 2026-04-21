@@ -95,7 +95,26 @@
     "guideFlowCues": "连线提示",
     "guideDescription": "颜色会强调语义角色、参数规模或可训练比例。紧凑视图会折叠重复堆栈，完整视图会显示原始树结构。",
     "initializing": "初始化中...",
-    "loadError": "模型结构加载失败"
+    "loadError": "模型结构加载失败",
+    "mode": {
+      "encoder-decoder": "编解码",
+      "decoder-only": "仅解码",
+      "encoder-only": "仅编码",
+      "base": "基础"
+    },
+    "modality": {
+      "vision": "视觉",
+      "audio": "音频",
+      "text": "文本"
+    },
+    "experts": "{{count}} 个专家 · top {{topK}}",
+    "attention": "{{heads}} 个头 · {{kvHeads}} 个 kv",
+    "warnings": "{{count}} 条警告",
+    "visibleGraph": "当前图谱",
+    "visibleGraphValue": "{{nodes}} 个节点 · {{groups}} 个分组",
+    "hotspot": "热点",
+    "density": "密度",
+    "focus": "焦点"
   },
   "layers": {
     "emptyTitle": "未选择模型",

@@ -95,7 +95,26 @@
     "guideFlowCues": "Flow cues",
     "guideDescription": "Color emphasizes either semantic role, parameter scale, or trainable ratio. Compact view folds repeated stacks; full view renders the raw tree.",
     "initializing": "Initializing...",
-    "loadError": "Failed to load model graph"
+    "loadError": "Failed to load model graph",
+    "mode": {
+      "encoder-decoder": "Encoder-decoder",
+      "decoder-only": "Decoder-only",
+      "encoder-only": "Encoder-only",
+      "base": "Base"
+    },
+    "modality": {
+      "vision": "Vision",
+      "audio": "Audio",
+      "text": "Text"
+    },
+    "experts": "{{count}} experts · top {{topK}}",
+    "attention": "{{heads}} heads · {{kvHeads}} kv",
+    "warnings": "{{count}} warnings",
+    "visibleGraph": "Visible graph",
+    "visibleGraphValue": "{{nodes}} nodes · {{groups}} groups",
+    "hotspot": "Hotspot",
+    "density": "Density",
+    "focus": "Focus"
   },
   "layers": {
     "emptyTitle": "No model selected",

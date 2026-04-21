@@ -22,6 +22,7 @@ import { normalizeTree } from './tree'
 import type { GraphNodeData, RawNode } from './types'
 import { Maximize2, Search, Info } from 'lucide-react'
 import { branchLabelMap, quantityLabelMap, roleLabelMap } from './visuals'
+import { deriveGraphInsights, deriveModelSummary } from './modelInsights'
 
 const nodeTypes = { module: ModuleNode, group: GroupNode }
 const edgeTypes = { flow: FlowEdge }
@@ -204,6 +205,7 @@ export const ModelWorkspace = memo(function ModelWorkspace({
   const toggleExpanded = useExplorerStore((state) => state.toggleExpanded)
   const layoutDirection = useExplorerStore((state) => state.layoutDirection)
   const preferredViewMode = useExplorerStore((state) => state.viewMode)
+  const setZoom = useExplorerStore((state) => state.setZoom)
   const graphColorMode = useExplorerStore((state) => state.graphColorMode)
   const showGraphLegend = useExplorerStore((state) => state.showGraphLegend)
   const setShowGraphLegend = useExplorerStore((state) => state.setShowGraphLegend)
@@ -419,6 +421,8 @@ export const ModelWorkspace = memo(function ModelWorkspace({
   }, [selectedNodeId])
 
   const selectedNode = selectedNodeId ? graph?.nodeMap.get(selectedNodeId) : undefined
+  const modelSummary = useMemo(() => deriveModelSummary(manifest), [manifest])
+  const graphInsights = useMemo(() => deriveGraphInsights(graph?.nodeMap), [graph])
   const inspectorOpen = Boolean(selectedNode)
   const loading = Boolean(selectedModelId) && (layoutState.status === 'loading' || manifestLoading || treeQuery.isLoading)
   const fitViewKey = useMemo(() => {
@@ -521,6 +525,45 @@ export const ModelWorkspace = memo(function ModelWorkspace({
         </div>
       </div>
 
+      {manifest && (
+        <div className="border-b border-border bg-panel-bg/70 px-4 py-2">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-text-muted">
+            {modelSummary.architecture ? <span className="rounded-full border border-border bg-bg px-2.5 py-1 font-mono text-text-main">{modelSummary.architecture}</span> : null}
+            {modelSummary.configClass ? <span className="rounded-full border border-border bg-bg px-2.5 py-1">{modelSummary.configClass}</span> : null}
+            {modelSummary.mapping ? <span className="rounded-full border border-border bg-bg px-2.5 py-1">{modelSummary.mapping}</span> : null}
+            {modelSummary.mode ? <span className="rounded-full border border-border bg-bg px-2.5 py-1">{t(`workspace.mode.${modelSummary.mode}`)}</span> : null}
+            {modelSummary.modality.length > 0 ? <span className="rounded-full border border-border bg-bg px-2.5 py-1">{modelSummary.modality.map((item) => t(`workspace.modality.${item}`)).join(' · ')}</span> : null}
+            {modelSummary.experts ? <span className="rounded-full border border-border bg-bg px-2.5 py-1">{modelSummary.experts.topK ? t('workspace.experts', { count: modelSummary.experts.count, topK: modelSummary.experts.topK }) : `${modelSummary.experts.count} experts`}</span> : null}
+            {modelSummary.attention ? <span className="rounded-full border border-border bg-bg px-2.5 py-1">{modelSummary.attention.kvHeads ? t('workspace.attention', { heads: modelSummary.attention.heads, kvHeads: modelSummary.attention.kvHeads }) : `${modelSummary.attention.heads} heads`}</span> : null}
+            {modelSummary.warningCount > 0 ? <span className="rounded-full border border-amber-300/50 bg-amber-500/10 px-2.5 py-1 text-amber-700 dark:text-amber-300">{t('workspace.warnings', { count: modelSummary.warningCount })}</span> : null}
+          </div>
+          <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-border bg-bg px-3 py-2">
+              <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">{t('workspace.visibleGraph')}</div>
+              <div className="mt-1 text-sm font-medium text-text-main">{t('workspace.visibleGraphValue', { nodes: graphInsights.visibleNodes, groups: graphInsights.visibleGroups })}</div>
+            </div>
+            <div className="rounded-xl border border-border bg-bg px-3 py-2">
+              <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">{t('workspace.hotspot')}</div>
+              <div className="mt-1 text-sm font-medium text-text-main truncate">{graphInsights.hotspot ? `${graphInsights.hotspot.label} · ${formatNumber(graphInsights.hotspot.paramCount)} P` : '—'}</div>
+            </div>
+            <div className="rounded-xl border border-border bg-bg px-3 py-2">
+              <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">{t('workspace.density')}</div>
+              <div className="mt-1 text-sm font-medium text-text-main truncate">{graphInsights.denseGroup ? `${graphInsights.denseGroup.label} · ${graphInsights.denseGroup.layerCount}L` : '—'}</div>
+            </div>
+            <div className="rounded-xl border border-border bg-bg px-3 py-2">
+              <div className="text-[10px] uppercase tracking-[0.12em] text-text-dim">{t('workspace.focus')}</div>
+              <div className="mt-1 text-sm font-medium text-text-main truncate">
+                {graphInsights.trainableFocus
+                  ? `${graphInsights.trainableFocus.label} · ${Math.round(graphInsights.trainableFocus.ratio * 100)}%`
+                  : graphInsights.dominantRole
+                    ? t(roleLabelMap[graphInsights.dominantRole])
+                    : '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex min-h-0 relative">
         {/* Graph Area */}
         <div className="flex-1 min-w-0 h-full relative">
@@ -586,7 +629,7 @@ export const ModelWorkspace = memo(function ModelWorkspace({
                 if (!node.isExpandable) return
                 toggleExpanded(node.id, node.isExpanded)
               }}
-              onZoomChange={() => {}}
+              onZoomChange={setZoom}
               onClearSelection={() => setSelectedNodeId(undefined)}
               fitViewKey={fitViewKey}
             />
