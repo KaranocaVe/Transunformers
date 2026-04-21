@@ -17,12 +17,12 @@ const elk = new ELK()
 const ROOT_LAYOUT_OPTIONS: Record<string, string> = {
   'elk.algorithm': 'layered',
   'elk.direction': 'DOWN',
-  'elk.spacing.nodeNode': '40',
-  'elk.spacing.edgeNode': '20',
-  'elk.spacing.edgeEdge': '12',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '40',
-  'elk.layered.spacing.edgeNodeBetweenLayers': '24',
-  'elk.layered.spacing.edgeEdgeBetweenLayers': '20',
+  'elk.spacing.nodeNode': '26',
+  'elk.spacing.edgeNode': '14',
+  'elk.spacing.edgeEdge': '8',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '26',
+  'elk.layered.spacing.edgeNodeBetweenLayers': '16',
+  'elk.layered.spacing.edgeEdgeBetweenLayers': '12',
   'elk.layered.nodePlacement.favorStraightEdges': 'true',
   'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
   'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
@@ -33,12 +33,12 @@ const ROOT_LAYOUT_OPTIONS: Record<string, string> = {
 
 const CONTAINER_LAYOUT_OPTIONS: Record<string, string> = {
   'elk.algorithm': 'layered',
-  'elk.spacing.nodeNode': '32',
-  'elk.spacing.edgeNode': '20',
-  'elk.spacing.edgeEdge': '14',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '48',
-  'elk.layered.spacing.edgeNodeBetweenLayers': '28',
-  'elk.layered.spacing.edgeEdgeBetweenLayers': '20',
+  'elk.spacing.nodeNode': '20',
+  'elk.spacing.edgeNode': '14',
+  'elk.spacing.edgeEdge': '10',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '24',
+  'elk.layered.spacing.edgeNodeBetweenLayers': '16',
+  'elk.layered.spacing.edgeEdgeBetweenLayers': '12',
   'elk.layered.nodePlacement.favorStraightEdges': 'true',
   'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
   'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
@@ -46,7 +46,7 @@ const CONTAINER_LAYOUT_OPTIONS: Record<string, string> = {
   'elk.edgeRouting': 'ORTHOGONAL',
   'elk.contentAlignment': 'H_CENTER V_TOP',
   'elk.nodeSize.constraints': 'MINIMUM_SIZE',
-  'elk.padding': '[top=80,left=40,bottom=60,right=40]',
+  'elk.padding': '[top=44,left=24,bottom=28,right=24]',
 }
 
 const resolveNumericDimension = (value: unknown) => {
@@ -308,7 +308,7 @@ export const layoutGraph = async <T>(
           minY = Math.min(minY, node.position.y)
       })
       
-      const padding = 40
+      const padding = 20
       const offsetX = minX < padding ? padding - minX : 0
       const offsetY = minY < padding ? padding - minY : 0
       
