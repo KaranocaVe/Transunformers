@@ -58,6 +58,29 @@ def classify_module(class_name: str, path: str) -> list[str]:
         tags.add("pooler")
     if "head" in class_lower or "lm_head" in path_lower or "classifier" in class_lower:
         tags.add("head")
+    if any(token in class_lower or token in path_lower for token in ("expert", "experts", "moe", "mixture_of_experts")):
+        tags.update({"expert", "moe"})
+    if any(token in class_lower or token in path_lower for token in ("router", "gate", "gating")):
+        tags.add("router")
+    if any(token in class_lower or token in path_lower for token in ("bridge", "fusion", "connector", "adapter", "projector", "projection", "qformer", "q_former")):
+        tags.add("bridge")
+    has_vision = any(token in class_lower or token in path_lower for token in ("vision", "visual", "image", "pixel", "vit"))
+    has_text = any(token in class_lower or token in path_lower for token in ("text", "token", "embed_tokens", "lm_head"))
+    has_audio = any(token in class_lower or token in path_lower for token in ("audio", "speech", "whisper", "wav", "acoustic"))
+    if has_vision:
+        tags.add("vision")
+    if has_text:
+        tags.add("text")
+    if has_audio:
+        tags.add("audio")
+    if sum([has_vision, has_text, has_audio]) >= 2:
+        tags.add("multimodal")
+    if path_lower.endswith((".embeddings", ".embed_tokens")):
+        tags.add("input")
+    if any(token in path_lower for token in ("lm_head", ".classifier", ".score", ".pooler")):
+        tags.add("output")
+    if any(token in path_lower for token in ("encoder.layer", "decoder.layer", ".layers.", ".blocks.")):
+        tags.add("trunk")
     return sorted(tags)
 
 
