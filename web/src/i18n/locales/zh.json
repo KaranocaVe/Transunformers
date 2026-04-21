@@ -96,6 +96,15 @@
     "guideDescription": "颜色会强调语义角色、参数规模或可训练比例。紧凑视图会折叠重复堆栈，完整视图会显示原始树结构。",
     "initializing": "初始化中...",
     "loadError": "模型结构加载失败",
+    "traceUnavailable": "这个模型没有可用的运行流 trace。",
+    "traceUnavailableHint": "只有在解析时生成了 trace artifacts，flow mode 才能工作。",
+    "flowMode": "运行流模式",
+    "structureMode": "结构模式",
+    "flowSummary": "运行路径",
+    "flowVisibleGraph": "已执行图谱",
+    "flowVisibleGraphValue": "{{nodes}} 个执行节点 · {{edges}} 条连线",
+    "flowRoot": "入口",
+    "flowLeaf": "出口",
     "mode": {
       "encoder-decoder": "编解码",
       "decoder-only": "仅解码",
@@ -154,6 +163,10 @@
     "legendPanelDescription": "在工作区固定显示一份轻量图谱说明。",
     "legendHide": "隐藏",
     "legendShow": "显示",
+    "graphMode": "图模式",
+    "graphModeDescription": "在结构拓扑与运行流视角之间切换。",
+    "graphModeStructure": "结构",
+    "graphModeFlow": "运行流",
     "footer": "为大规模模型结构目录浏览而构建。"
   },
   "graphSemantics": {

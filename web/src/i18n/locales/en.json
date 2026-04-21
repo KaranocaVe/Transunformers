@@ -96,6 +96,15 @@
     "guideDescription": "Color emphasizes either semantic role, parameter scale, or trainable ratio. Compact view folds repeated stacks; full view renders the raw tree.",
     "initializing": "Initializing...",
     "loadError": "Failed to load model graph",
+    "traceUnavailable": "Runtime flow trace is unavailable for this model.",
+    "traceUnavailableHint": "Flow mode only works when trace artifacts were generated during parsing.",
+    "flowMode": "Flow mode",
+    "structureMode": "Structure mode",
+    "flowSummary": "Runtime path",
+    "flowVisibleGraph": "Executed graph",
+    "flowVisibleGraphValue": "{{nodes}} executed nodes · {{edges}} links",
+    "flowRoot": "Entry",
+    "flowLeaf": "Exit",
     "mode": {
       "encoder-decoder": "Encoder-decoder",
       "decoder-only": "Decoder-only",
@@ -154,6 +163,10 @@
     "legendPanelDescription": "Keep a lightweight graph guide pinned in the workspace.",
     "legendHide": "Hide",
     "legendShow": "Show",
+    "graphMode": "Graph mode",
+    "graphModeDescription": "Switch between structural topology and runtime execution flow.",
+    "graphModeStructure": "Structure",
+    "graphModeFlow": "Flow",
     "footer": "Built for navigating large model structure catalogs."
   },
   "graphSemantics": {

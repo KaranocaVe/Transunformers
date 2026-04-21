@@ -4,6 +4,7 @@ export type ViewMode = 'compact' | 'full'
 export type LayoutDirection = 'DOWN' | 'RIGHT'
 export type SortMode = 'name' | 'parameters' | 'modules'
 export type GraphColorMode = 'role' | 'parameters' | 'trainable'
+export type GraphMode = 'structure' | 'flow'
 
 type ExplorerState = {
   selectedModelId?: string
@@ -20,6 +21,7 @@ type ExplorerState = {
   showFilters: boolean
   graphColorMode: GraphColorMode
   showGraphLegend: boolean
+  graphMode: GraphMode
   setSelectedModelId: (modelId?: string) => void
   setSelectedNodeId: (nodeId?: string) => void
   setViewMode: (mode: ViewMode) => void
@@ -35,6 +37,7 @@ type ExplorerState = {
   setShowFilters: (show: boolean) => void
   setGraphColorMode: (mode: GraphColorMode) => void
   setShowGraphLegend: (show: boolean) => void
+  setGraphMode: (mode: GraphMode) => void
 }
 
 export const useExplorerStore = create<ExplorerState>((set) => ({
@@ -50,6 +53,7 @@ export const useExplorerStore = create<ExplorerState>((set) => ({
   showFilters: false,
   graphColorMode: 'role',
   showGraphLegend: true,
+  graphMode: 'structure',
   setSelectedModelId: (modelId) =>
     set((state) => ({
       selectedModelId: modelId,
@@ -78,4 +82,5 @@ export const useExplorerStore = create<ExplorerState>((set) => ({
   setShowFilters: (show) => set({ showFilters: show }),
   setGraphColorMode: (mode) => set({ graphColorMode: mode }),
   setShowGraphLegend: (show) => set({ showGraphLegend: show }),
+  setGraphMode: (mode) => set({ graphMode: mode, selectedNodeId: undefined }),
 }))

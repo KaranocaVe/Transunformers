@@ -12,6 +12,8 @@ export default function SettingsPage() {
     setLayoutDirection,
     viewMode,
     setViewMode,
+    graphMode,
+    setGraphMode,
     graphColorMode,
     setGraphColorMode,
     showGraphLegend,
@@ -86,6 +88,33 @@ export default function SettingsPage() {
                     <h2 className="text-sm font-medium text-text-muted mb-4 uppercase tracking-wider">{t('settings.graphView')}</h2>
                     <div className="bg-panel-bg border border-border rounded-lg overflow-hidden divide-y divide-border">
                         
+                        {/* Layout Direction */}
+                        <div className="p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-md bg-bg text-text-main">
+                                    <LayoutGrid size={18} />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-text-main">{t('settings.graphMode')}</div>
+                                    <div className="text-xs text-text-muted">{t('settings.graphModeDescription')}</div>
+                                </div>
+                            </div>
+                            <div className="flex gap-1 bg-bg p-1 rounded-md border border-border">
+                                <button
+                                    onClick={() => setGraphMode('structure')}
+                                    className={`px-3 py-1 rounded text-[10px] font-medium transition-colors ${graphMode === 'structure' ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-main'}`}
+                                >
+                                    {t('settings.graphModeStructure')}
+                                </button>
+                                <button
+                                    onClick={() => setGraphMode('flow')}
+                                    className={`px-3 py-1 rounded text-[10px] font-medium transition-colors ${graphMode === 'flow' ? 'bg-brand-primary text-white shadow-sm' : 'text-text-muted hover:text-text-main'}`}
+                                >
+                                    {t('settings.graphModeFlow')}
+                                </button>
+                            </div>
+                        </div>
+
                         {/* Layout Direction */}
                         <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">

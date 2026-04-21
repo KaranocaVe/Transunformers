@@ -13,6 +13,7 @@ import { modelDataClient, useModelChunk, useModelManifest } from '../../data'
 import { useExplorerStore } from '../explorer/store'
 import { NodeInspector } from '../inspector/NodeInspector'
 import { FlowEdge } from './FlowEdge'
+import { FlowWorkspace } from '../flow/FlowWorkspace'
 import { GroupNode } from './GroupNode'
 import { ModuleNode } from './ModuleNode'
 import { buildGraph } from './graph-builder'
@@ -191,14 +192,15 @@ function GraphCanvas({
   )
 }
 
-export const ModelWorkspace = memo(function ModelWorkspace({
+const StructureWorkspace = memo(function StructureWorkspace({
   containerWidth,
+  selectedModelId,
 }: {
   containerWidth?: number
+  selectedModelId?: string
 }) {
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const selectedModelId = useExplorerStore((state) => state.selectedModelId)
   const expandedNodes = useExplorerStore((state) => state.expandedNodes)
   const setSelectedNodeId = useExplorerStore((state) => state.setSelectedNodeId)
   const selectedNodeId = useExplorerStore((state) => state.selectedNodeId)
@@ -650,4 +652,20 @@ export const ModelWorkspace = memo(function ModelWorkspace({
       </div>
     </div>
   )
+})
+
+
+export const ModelWorkspace = memo(function ModelWorkspace({
+  containerWidth,
+}: {
+  containerWidth?: number
+}) {
+  const selectedModelId = useExplorerStore((state) => state.selectedModelId)
+  const graphMode = useExplorerStore((state) => state.graphMode)
+
+  if (graphMode === 'flow') {
+    return <FlowWorkspace selectedModelId={selectedModelId} />
+  }
+
+  return <StructureWorkspace containerWidth={containerWidth} selectedModelId={selectedModelId} />
 })
