@@ -100,6 +100,8 @@
     "traceUnavailableHint": "只有在解析时生成了 trace artifacts，flow mode 才能工作。",
     "flowMode": "运行流模式",
     "structureMode": "结构模式",
+    "focusEnter": "聚焦图谱",
+    "focusExit": "退出聚焦",
     "flowSummary": "运行路径",
     "flowVisibleGraph": "已执行图谱",
     "flowVisibleGraphValue": "{{nodes}} 个执行节点 · {{edges}} 条连线",

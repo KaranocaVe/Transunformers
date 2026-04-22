@@ -100,6 +100,8 @@
     "traceUnavailableHint": "Flow mode only works when trace artifacts were generated during parsing.",
     "flowMode": "Flow mode",
     "structureMode": "Structure mode",
+    "focusEnter": "Focus graph",
+    "focusExit": "Exit focus",
     "flowSummary": "Runtime path",
     "flowVisibleGraph": "Executed graph",
     "flowVisibleGraphValue": "{{nodes}} executed nodes · {{edges}} links",

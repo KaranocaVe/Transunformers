@@ -47,6 +47,49 @@ test('handles empty and single-node graph states without stale leftovers', async
   await expect(page.getByTestId('workspace-empty')).toBeVisible()
 })
 
+test('toggles graph focus mode without losing the active graph state', async ({ page }) => {
+  await installDeterministicGraphRoutes(page)
+  await page.goto('/')
+
+  await selectModel(page, MODEL_IDS.collapsed)
+  await waitForWorkspaceReady(page, MODEL_IDS.collapsed)
+
+  const collapsedNodeId = await getFirstCollapsedNodeId(page)
+  await clickNodeById(page, collapsedNodeId)
+
+  await expect(page.getByTestId('inspector')).toBeVisible()
+  await expect(
+    page.locator(`[data-testid="module-node"][data-id="${collapsedNodeId}"][data-selected="true"]`),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Deck' })).toBeVisible()
+  await expect(page.getByTestId('model-search')).toBeVisible()
+  await expect(page.getByTestId('sidebar-resize-handle')).toBeVisible()
+
+  await page.getByTestId('graph-focus-toggle').click()
+
+  await expect(page.getByTestId('graph-focus-toggle')).toContainText('Exit focus')
+  await expect(page.getByRole('button', { name: 'Deck' })).toHaveCount(0)
+  await expect(page.getByTestId('model-search')).toHaveCount(0)
+  await expect(page.getByTestId('sidebar-resize-handle')).toHaveCount(0)
+  await expect(page.getByTestId('inspector')).toBeVisible()
+  await expect(
+    page.locator(`[data-testid="module-node"][data-id="${collapsedNodeId}"][data-selected="true"]`),
+  ).toBeVisible()
+  await expectNodesWithinCanvas(page)
+
+  await page.getByTestId('graph-focus-toggle').click()
+
+  await expect(page.getByTestId('graph-focus-toggle')).toContainText('Focus graph')
+  await expect(page.getByRole('button', { name: 'Deck' })).toBeVisible()
+  await expect(page.getByTestId('model-search')).toBeVisible()
+  await expect(page.getByTestId('sidebar-resize-handle')).toBeVisible()
+  await expect(page.getByTestId('inspector')).toBeVisible()
+  await expect(
+    page.locator(`[data-testid="module-node"][data-id="${collapsedNodeId}"][data-selected="true"]`),
+  ).toBeVisible()
+  await expectNodesWithinCanvas(page)
+})
+
 test('refits complex graphs after resize, selection, relayout, and collapsed-stack toggles', async ({ page }) => {
   await installDeterministicGraphRoutes(page)
   await page.goto('/')

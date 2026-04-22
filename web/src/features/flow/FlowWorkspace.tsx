@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Background, ReactFlow, ReactFlowProvider, type Edge, type Node } from 'reactflow'
+import { Background, ReactFlow, ReactFlowProvider, type Edge, type Node, useReactFlow } from 'reactflow'
+import { Maximize2, Minimize2 } from 'lucide-react'
 
 import { Button, Spinner } from '@heroui/react'
 import { useModelManifest, useModelTraceSummary } from '../../data/queries'
@@ -26,6 +27,8 @@ export function FlowWorkspace({ selectedModelId }: { selectedModelId?: string })
   const { t } = useTranslation()
   const setGraphMode = useExplorerStore((state) => state.setGraphMode)
   const layoutDirection = useExplorerStore((state) => state.layoutDirection)
+  const graphFocusMode = useExplorerStore((state) => state.graphFocusMode)
+  const setGraphFocusMode = useExplorerStore((state) => state.setGraphFocusMode)
   const { data: manifest, isLoading: manifestLoading, error: manifestError } = useModelManifest(
     selectedModelId,
     { gcTime: flowQueryGcTime },
@@ -159,17 +162,30 @@ export function FlowWorkspace({ selectedModelId }: { selectedModelId?: string })
       data-graph-mode="flow"
       data-layout-status={isLoading ? 'loading' : 'ready'}
       data-selected-model-id={selectedModelId}
-        data-graph-node-count={layoutState.nodes.length}
-        data-graph-edge-count={layoutState.edges.length}
+      data-graph-focus-mode={graphFocusMode ? 'true' : 'false'}
+      data-graph-node-count={layoutState.nodes.length}
+      data-graph-edge-count={layoutState.edges.length}
     >
       <div className="h-12 border-b border-border bg-panel-bg flex items-center justify-between px-4 shrink-0 z-20">
         <h1 className="font-semibold text-sm text-text-main flex items-center gap-2" data-testid="workspace-title">
           {manifest?.model.safe_id ?? '...'}
           <span className="text-[10px] uppercase font-mono bg-border/50 text-text-muted px-1.5 py-0.5 rounded">{t('workspace.flowMode')}</span>
         </h1>
-        <Button size="sm" variant="bordered" onPress={() => setGraphMode('structure')}>
-          {t('workspace.structureMode')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={graphFocusMode ? 'solid' : 'bordered'}
+            className={graphFocusMode ? 'bg-brand-primary text-white' : 'border-border text-text-main hover:bg-black/5 dark:hover:bg-white/5'}
+            startContent={graphFocusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            onPress={() => setGraphFocusMode(!graphFocusMode)}
+            data-testid="graph-focus-toggle"
+          >
+            {graphFocusMode ? t('workspace.focusExit') : t('workspace.focusEnter')}
+          </Button>
+          <Button size="sm" variant="bordered" onPress={() => setGraphMode('structure')}>
+            {t('workspace.structureMode')}
+          </Button>
+        </div>
       </div>
 
       <div className="border-b border-border bg-panel-bg/70 px-4 py-2">

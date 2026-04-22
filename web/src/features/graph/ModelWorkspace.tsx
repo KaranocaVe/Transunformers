@@ -21,7 +21,7 @@ import { layoutGraph } from './elk-layout'
 import { applySelectedNodeToLayoutNodes } from './selection'
 import { normalizeTree } from './tree'
 import type { GraphNodeData, RawNode } from './types'
-import { Maximize2, Search, Info } from 'lucide-react'
+import { Maximize2, Minimize2, Search, Info } from 'lucide-react'
 import { branchLabelMap, quantityLabelMap, roleLabelMap } from './visuals'
 import { deriveGraphInsights, deriveModelSummary } from './modelInsights'
 
@@ -211,6 +211,8 @@ const StructureWorkspace = memo(function StructureWorkspace({
   const graphColorMode = useExplorerStore((state) => state.graphColorMode)
   const showGraphLegend = useExplorerStore((state) => state.showGraphLegend)
   const setShowGraphLegend = useExplorerStore((state) => state.setShowGraphLegend)
+  const graphFocusMode = useExplorerStore((state) => state.graphFocusMode)
+  const setGraphFocusMode = useExplorerStore((state) => state.setGraphFocusMode)
 
   const { data: manifest, isLoading: manifestLoading } = useModelManifest(selectedModelId, {
     gcTime: graphQueryGcTime,
@@ -494,6 +496,7 @@ const StructureWorkspace = memo(function StructureWorkspace({
       data-layout-direction={layoutDirection}
       data-view-mode={viewMode}
       data-inspector-open={inspectorOpen ? 'true' : 'false'}
+      data-graph-focus-mode={graphFocusMode ? 'true' : 'false'}
       data-graph-node-count={layoutState.nodes.length}
       data-graph-edge-count={layoutState.edges.length}
     >
@@ -508,20 +511,27 @@ const StructureWorkspace = memo(function StructureWorkspace({
         
         <div className="flex items-center gap-2">
            <Button
+              size="sm"
+              variant={showGraphLegend ? 'solid' : 'light'}
+              className={showGraphLegend ? 'bg-brand-primary text-white' : 'text-text-muted hover:text-text-main'}
+              startContent={<Info size={14} />}
+              onPress={() => setShowGraphLegend(!showGraphLegend)}
+            >
+               {showGraphLegend ? t('settings.legendHide') : t('settings.legendShow')}
+             </Button>
+           <Button
              size="sm"
-             variant={showGraphLegend ? 'solid' : 'light'}
-             className={showGraphLegend ? 'bg-brand-primary text-white' : 'text-text-muted hover:text-text-main'}
-             startContent={<Info size={14} />}
-             onPress={() => setShowGraphLegend(!showGraphLegend)}
+             variant={graphFocusMode ? 'solid' : 'bordered'}
+             className={graphFocusMode ? 'bg-brand-primary text-white' : 'border-border text-text-main hover:bg-black/5 dark:hover:bg-white/5'}
+             startContent={graphFocusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+             onPress={() => setGraphFocusMode(!graphFocusMode)}
+             data-testid="graph-focus-toggle"
            >
-              {showGraphLegend ? t('settings.legendHide') : t('settings.legendShow')}
-            </Button>
-           <Button size="sm" variant="light" isIconOnly className="text-text-muted hover:text-text-main">
-               <Maximize2 size={16} />
-            </Button>
+             {graphFocusMode ? t('workspace.focusExit') : t('workspace.focusEnter')}
+           </Button>
            {manifest && (
-            <div className="flex items-center gap-3 text-xs font-mono text-text-muted border-l border-border pl-3 ml-2">
-               <div>{t('workspace.params', { value: formatNumber(manifest.model.parameters?.count ?? 0) })}</div>
+             <div className="flex items-center gap-3 text-xs font-mono text-text-muted border-l border-border pl-3 ml-2">
+                <div>{t('workspace.params', { value: formatNumber(manifest.model.parameters?.count ?? 0) })}</div>
              </div>
             )}
         </div>

@@ -22,6 +22,7 @@ type ExplorerState = {
   graphColorMode: GraphColorMode
   showGraphLegend: boolean
   graphMode: GraphMode
+  graphFocusMode: boolean
   setSelectedModelId: (modelId?: string) => void
   setSelectedNodeId: (nodeId?: string) => void
   setViewMode: (mode: ViewMode) => void
@@ -38,6 +39,7 @@ type ExplorerState = {
   setGraphColorMode: (mode: GraphColorMode) => void
   setShowGraphLegend: (show: boolean) => void
   setGraphMode: (mode: GraphMode) => void
+  setGraphFocusMode: (focused: boolean) => void
 }
 
 export const useExplorerStore = create<ExplorerState>((set) => ({
@@ -54,6 +56,7 @@ export const useExplorerStore = create<ExplorerState>((set) => ({
   graphColorMode: 'role',
   showGraphLegend: true,
   graphMode: 'structure',
+  graphFocusMode: false,
   setSelectedModelId: (modelId) =>
     set((state) => ({
       selectedModelId: modelId,
@@ -83,4 +86,5 @@ export const useExplorerStore = create<ExplorerState>((set) => ({
   setGraphColorMode: (mode) => set({ graphColorMode: mode }),
   setShowGraphLegend: (show) => set({ showGraphLegend: show }),
   setGraphMode: (mode) => set({ graphMode: mode, selectedNodeId: undefined }),
+  setGraphFocusMode: (focused) => set({ graphFocusMode: focused }),
 }))
