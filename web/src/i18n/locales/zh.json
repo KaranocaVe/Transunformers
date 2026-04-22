@@ -40,9 +40,9 @@
     "exportConfig": "导出配置"
   },
   "overview": {
-    "badge": "模型目录",
-    "title": "先理解整个模型目录，再深入单个架构。",
-    "description": "总览页把解析结果整理成一个可快速浏览的产品首页：家族分布、映射覆盖、参数量级，以及当前最值得继续打开的模型。",
+    "badge": "Hugging Face 模型目录",
+    "title": "浏览 Hugging Face 里的 Transformer 架构。",
+    "description": "Transunformers 把 Hugging Face 模型整理成一个可搜索、可视化的模型目录。你可以打开任意模型，查看它的模块树、层级结构、参数分布和运行流。",
     "enterGraph": "进入结构图工作区",
     "openLayers": "打开层级表",
     "activeQuery": "当前查询",

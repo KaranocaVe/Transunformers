@@ -17,6 +17,11 @@ import { Button } from '@heroui/react'
 import { useModelIndex } from '../../data/queries'
 import type { ModelIndexEntry } from '../../data/types'
 import { formatNumber } from '../utils/format'
+import {
+  FamilyRankingChart,
+  MappingShareChart,
+  ParameterHistogramChart,
+} from './OverviewCharts'
 import { useExplorerStore } from '../explorer/store'
 import {
   collectFilterOptions,
@@ -89,52 +94,6 @@ function MetricCard({
   )
 }
 
-function DistributionBars({
-  title,
-  eyebrow,
-  items,
-  accentClass,
-  onSelect,
-}: {
-  title: string
-  eyebrow: string
-  items: Array<{ label: string; value: number }>
-  accentClass: string
-  onSelect?: (label: string) => void
-}) {
-  const maxValue = Math.max(...items.map((item) => item.value), 1)
-
-  return (
-    <div className="rounded-2xl border border-border bg-panel-bg p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="mb-5">
-        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-text-dim">{eyebrow}</div>
-        <h2 className="mt-2 text-lg font-semibold text-text-main">{title}</h2>
-      </div>
-      <div className="space-y-3">
-        {items.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            onClick={() => onSelect?.(item.label)}
-            className="w-full text-left"
-          >
-            <div className="mb-1 flex items-center justify-between gap-3 text-xs">
-              <span className="truncate font-mono text-text-main">{item.label}</span>
-              <span className="text-text-muted">{formatNumber(item.value)}</span>
-            </div>
-            <div className="h-2 rounded-full bg-bg">
-              <div
-                className={`h-full rounded-full ${accentClass}`}
-                style={{ width: `${(item.value / maxValue) * 100}%` }}
-              />
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default function OverviewPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -147,7 +106,7 @@ export default function OverviewPage() {
   const setMappingFilter = useExplorerStore((state) => state.setMappingFilter)
   const setSelectedModelId = useExplorerStore((state) => state.setSelectedModelId)
 
-  const models = index?.models ?? []
+  const models = useMemo(() => index?.models ?? [], [index])
   const filteredModels = useMemo(
     () => filterAndSortModels(models, { search, sortBy, modelTypeFilter, mappingFilter }),
     [mappingFilter, modelTypeFilter, models, search, sortBy],
@@ -300,24 +259,23 @@ export default function OverviewPage() {
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[1.1fr_1.1fr_0.9fr]">
-          <DistributionBars
+          <FamilyRankingChart
             eyebrow={t('overview.familiesEyebrow')}
             title={t('overview.familiesTitle')}
             items={typeDistribution}
-            accentClass="bg-gradient-to-r from-brand-primary via-brand-primary to-cyan-400"
+            activeLabel={modelTypeFilter[0]}
             onSelect={(label) => toggleSingleFilter(modelTypeFilter, label, setModelTypeFilter)}
           />
-          <DistributionBars
+          <ParameterHistogramChart
             eyebrow={t('overview.scaleEyebrow')}
             title={t('overview.scaleTitle')}
             items={parameterDistribution}
-            accentClass="bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-300"
           />
-          <DistributionBars
+          <MappingShareChart
             eyebrow={t('overview.mappingsEyebrow')}
             title={t('overview.mappingsTitle')}
             items={mappingDistribution}
-            accentClass="bg-gradient-to-r from-amber-500 via-orange-400 to-pink-400"
+            activeLabel={mappingFilter[0]}
             onSelect={(label) => toggleSingleFilter(mappingFilter, label, setMappingFilter)}
           />
         </section>

@@ -40,9 +40,9 @@
     "exportConfig": "Export Config"
   },
   "overview": {
-    "badge": "Model Catalog",
-    "title": "Understand the catalog before you dive into a single architecture.",
-    "description": "Overview turns the parsed index into a fast operational summary: model families, mapping coverage, parameter scale, and the architectures worth opening next.",
+    "badge": "Hugging Face Model Catalog",
+    "title": "Explore Transformer architectures from the Hugging Face catalog.",
+    "description": "Transunformers turns Hugging Face models into a searchable visual catalog. Open any model to inspect its module tree, layer breakdown, parameter distribution, and runtime flow.",
     "enterGraph": "Open Graph Workspace",
     "openLayers": "Open Layers Table",
     "activeQuery": "Active Query",
