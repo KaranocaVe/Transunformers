@@ -17,6 +17,102 @@ const nodeTypes = { module: ModuleNode }
 const edgeTypes = { flow: FlowEdge }
 const flowQueryGcTime = 0
 
+function FlowCanvas({
+  nodes,
+  edges,
+  fitViewKey,
+}: {
+  nodes: Node<GraphNodeData>[]
+  edges: Edge[]
+  fitViewKey?: string
+}) {
+  const { fitView } = useReactFlow()
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const fitFrameRef = useRef<number | undefined>(undefined)
+  const lastFitKeyRef = useRef<string | undefined>(undefined)
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+
+    const updateSize = (width: number, height: number) => {
+      const nextWidth = Math.round(width)
+      const nextHeight = Math.round(height)
+      setContainerSize((current) => {
+        if (current.width === nextWidth && current.height === nextHeight) {
+          return current
+        }
+        return { width: nextWidth, height: nextHeight }
+      })
+    }
+
+    updateSize(element.clientWidth, element.clientHeight)
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      updateSize(entry.contentRect.width, entry.contentRect.height)
+    })
+
+    observer.observe(element)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (fitFrameRef.current !== undefined) {
+        cancelAnimationFrame(fitFrameRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!fitViewKey || nodes.length === 0) return
+    if (containerSize.width === 0 || containerSize.height === 0) return
+
+    const nextFitKey = `${fitViewKey}:${containerSize.width}x${containerSize.height}`
+    if (lastFitKeyRef.current === nextFitKey) return
+    lastFitKeyRef.current = nextFitKey
+
+    let innerFrame: number | undefined
+    fitFrameRef.current = requestAnimationFrame(() => {
+      innerFrame = requestAnimationFrame(() => {
+        fitView({ padding: 0.2, nodes, duration: 600 })
+      })
+    })
+
+    return () => {
+      if (fitFrameRef.current !== undefined) {
+        cancelAnimationFrame(fitFrameRef.current)
+        fitFrameRef.current = undefined
+      }
+      if (innerFrame !== undefined) {
+        cancelAnimationFrame(innerFrame)
+      }
+    }
+  }, [containerSize.height, containerSize.width, fitView, fitViewKey, nodes])
+
+  return (
+    <div ref={containerRef} className="h-full w-full" data-testid="graph-canvas">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        proOptions={{ hideAttribution: true }}
+        minZoom={0.1}
+        maxZoom={4}
+      >
+        <Background />
+      </ReactFlow>
+    </div>
+  )
+}
+
 type FlowLayoutState = {
   nodes: Node<GraphNodeData>[]
   edges: Edge[]
@@ -50,6 +146,18 @@ export function FlowWorkspace({ selectedModelId }: { selectedModelId?: string })
   const [layoutState, setLayoutState] = useState<FlowLayoutState>({ nodes: [], edges: [], status: 'idle' })
   const layoutRequestRef = useRef(0)
   const isLoading = Boolean(selectedModelId) && (manifestLoading || (traceAvailable && traceLoading || layoutState.status === 'loading'))
+  const fitViewKey = useMemo(() => {
+    if (layoutState.status !== 'ready' || layoutState.nodes.length === 0 || !selectedModelId) {
+      return undefined
+    }
+
+    return [
+      selectedModelId,
+      layoutDirection,
+      layoutState.nodes.length,
+      layoutState.edges.length,
+    ].join(':')
+  }, [layoutDirection, layoutState.edges.length, layoutState.nodes.length, layoutState.status, selectedModelId])
 
   useEffect(() => {
     if (!traceAvailable || !flowGraph.layoutRoot || flowGraph.nodes.length === 0) {
@@ -218,20 +326,7 @@ export function FlowWorkspace({ selectedModelId }: { selectedModelId?: string })
           </div>
         )}
         <ReactFlowProvider>
-          <div className="h-full w-full" data-testid="graph-canvas">
-            <ReactFlow
-              nodes={layoutState.nodes}
-              edges={layoutState.edges}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              fitView
-              proOptions={{ hideAttribution: true }}
-              minZoom={0.1}
-              maxZoom={4}
-            >
-              <Background />
-            </ReactFlow>
-          </div>
+          <FlowCanvas nodes={layoutState.nodes} edges={layoutState.edges} fitViewKey={fitViewKey} />
         </ReactFlowProvider>
       </div>
     </div>
