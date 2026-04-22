@@ -1,7 +1,7 @@
-@config "../tailwind.config.js";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 @import 'reactflow/dist/style.css';
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+@config "../tailwind.config.js";
 
 :root {
   color-scheme: light;
