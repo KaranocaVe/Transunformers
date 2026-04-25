@@ -169,37 +169,42 @@ export function FlowWorkspace({ selectedModelId }: { selectedModelId?: string })
     layoutRequestRef.current = requestId
     setLayoutState((current) => ({ ...current, status: 'loading' }))
 
-    const runtimeNodes: Node<GraphNodeData>[] = flowGraph.nodes.map((node) => ({
-      id: node.id,
-      type: 'module',
-      position: { x: node.x, y: node.y },
-      data: {
+    const runtimeNodes: Node<GraphNodeData>[] = flowGraph.nodes.map((node) => {
+      return {
         id: node.id,
-        label: node.label,
-        className: node.modulePath,
-        kind: 'module',
-        role: node.role,
-        depth: node.depth,
-        path: node.modulePath,
-        tags: node.tags,
-        hasChildren: false,
-        isExpandable: false,
-        isExpanded: false,
-        summaryLines: node.summaryLines,
-        branchHint: 'sequential',
-      },
-      width: node.width,
-      height: node.height,
-      draggable: false,
-      selectable: true,
-    }))
+        type: 'module',
+        position: { x: node.x, y: node.y },
+        data: {
+          id: node.id,
+          label: node.label,
+          className: node.modulePath,
+          kind: 'module',
+          role: node.role,
+          depth: node.depth,
+          path: node.modulePath,
+          tags: node.tags,
+          hasChildren: false,
+          isExpandable: false,
+          isExpanded: false,
+          summaryLines: node.summaryLines,
+          branchHint: node.branchHint,
+        },
+        width: node.width,
+        height: node.height,
+        draggable: false,
+        selectable: true,
+      }
+    })
 
     const runtimeEdges: Edge[] = flowGraph.edges.map((edge) => ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
       type: 'flow',
-      data: { kind: 'flow', branchHint: 'sequential' },
+      data: {
+        kind: 'flow',
+        branchHint: flowGraph.nodes.find((node) => node.id === edge.source)?.branchHint ?? 'sequential',
+      },
     }))
 
     let cancelled = false
