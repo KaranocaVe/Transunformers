@@ -1,14 +1,26 @@
 import type { RawTraceNode } from '../../data/types'
 import type { TreeNode } from '../graph/types'
 
+export type TraceTensorSummary = {
+  dtype?: string | null
+  shape?: string | null
+  signature: string
+}
+
 export type TraceTreeNode = {
   id: string
   label: string
   modulePath: string
   depth: number
   children: TraceTreeNode[]
-  inputCount: number
-  outputCount: number
+  inputArgCount: number
+  inputKwargKeys: string[]
+  inputTensorCount: number
+  outputTensorCount: number
+  inputTensors: TraceTensorSummary[]
+  outputTensors: TraceTensorSummary[]
+  primaryInputSignature?: string | null
+  primaryOutputSignature?: string | null
 }
 
 export type FlowGraph = {
