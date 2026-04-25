@@ -50,6 +50,7 @@ export type TreeNode = {
   parameterDetails?: RawNode['parameter_details']
   bufferDetails?: RawNode['buffer_details']
   tags?: string[] | null
+  summaryLines?: string[]
   children: TreeNode[]
   synthetic?: boolean
 }

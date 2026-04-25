@@ -55,7 +55,8 @@ export const GRAPH_NODE_SIZE_CONTRACT = {
     classNameHeight: 16,
     metricsHeight: 16,
     semanticHeight: 18,
-    summaryHeight: 18,
+    summaryBlockPadding: 8,
+    summaryLineHeight: 14,
   },
   collapsed: {
     minWidth: 190,
@@ -64,7 +65,8 @@ export const GRAPH_NODE_SIZE_CONTRACT = {
     classNameHeight: 16,
     metricsHeight: 16,
     semanticHeight: 18,
-    summaryHeight: 18,
+    summaryBlockPadding: 8,
+    summaryLineHeight: 14,
   },
   container: {
     minWidth: 250,
@@ -105,8 +107,11 @@ const resolveLeafNodeHeight = (node: TreeNode) => {
     height += contract.metricsHeight
   }
 
-  if (node.kind === 'collapsed' || (node.tags?.length ?? 0) > 0) {
-    height += contract.summaryHeight
+  const summaryLineCount = node.summaryLines?.filter((line) => line.trim().length > 0).length ?? 0
+  if (summaryLineCount > 0) {
+    height += contract.summaryBlockPadding + summaryLineCount * contract.summaryLineHeight
+  } else if (node.kind === 'collapsed' || (node.tags?.length ?? 0) > 0) {
+    height += contract.summaryBlockPadding + contract.summaryLineHeight
   }
 
   return height
