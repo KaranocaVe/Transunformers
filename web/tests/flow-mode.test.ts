@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { buildFlowGraph } from '../src/features/flow/flow-builder'
-import { normalizeTraceTree } from '../src/features/flow/flow-normalize'
+import { getGraphNodeSize } from '../src/features/graph/graph-builder.ts'
+import { buildFlowGraph } from '../src/features/flow/flow-builder.ts'
+import { normalizeTraceTree } from '../src/features/flow/flow-normalize.ts'
 
-test('normalizeTraceTree preserves module paths and IO counts', () => {
+test('normalizeTraceTree preserves module paths and tensor signatures', () => {
   const trace = {
     module_path: 'ExampleModel',
     inputs: { args: [{ shape: [1, 16] }] },
@@ -22,7 +23,8 @@ test('normalizeTraceTree preserves module paths and IO counts', () => {
   const normalized = normalizeTraceTree(trace)
   assert.ok(normalized)
   assert.equal(normalized.id, 'trace:0')
-  assert.equal(normalized.inputCount, 1)
+  assert.equal(normalized.inputArgCount, 1)
+  assert.equal(normalized.primaryInputSignature, '[1,16]')
   assert.equal(normalized.children[0]?.modulePath, 'ExampleModel.embed_tokens')
 })
 
@@ -48,10 +50,10 @@ test('normalizeTraceTree assigns unique ids to duplicate module paths', () => {
 
   const graph = buildFlowGraph(normalized)
   assert.equal(new Set(graph.nodes.map((node) => node.id)).size, graph.nodes.length)
-  assert.equal(graph.edges.length, 2)
+  assert.equal(graph.edges.length, 1)
 })
 
-test('buildFlowGraph creates ordered runtime nodes and edges', () => {
+test('buildFlowGraph creates flat runtime path edges', () => {
   const normalized = normalizeTraceTree({
     module_path: 'ExampleModel',
     children: [
@@ -68,11 +70,42 @@ test('buildFlowGraph creates ordered runtime nodes and edges', () => {
   })
 
   const graph = buildFlowGraph(normalized)
-  assert.equal(graph.nodes.length, 3)
-  assert.equal(graph.edges.length, 2)
+  const encoderNode = graph.nodes.find((node) => node.label === 'encoder')
+  const leafNode = graph.nodes.find((node) => node.label === 'layer_0')
+
+  assert.equal(graph.nodes.length, 2)
+  assert.equal(graph.edges.length, 1)
   assert.equal(graph.rootModulePath, 'ExampleModel')
-  assert.equal(graph.nodes[0]?.role, 'input')
-  assert.equal(graph.nodes[2]?.role, 'head')
-  assert.equal(graph.edges[0]?.source, graph.nodes[0]?.id)
-  assert.equal(graph.edges[0]?.target, graph.nodes[1]?.id)
+  assert.equal(encoderNode?.role, 'input')
+  assert.equal(leafNode?.role, 'head')
+  assert.equal(graph.edges[0]?.source, encoderNode?.id)
+  assert.equal(graph.edges[0]?.target, leafNode?.id)
+})
+
+test('getGraphNodeSize grows with summary line count', () => {
+  const compact = getGraphNodeSize({
+    id: 'compact',
+    name: 'compact',
+    path: 'Example.compact',
+    className: 'Example.compact',
+    kind: 'module',
+    depth: 1,
+    tags: ['attention'],
+    summaryLines: ['one line'],
+    children: [],
+  })
+
+  const verbose = getGraphNodeSize({
+    id: 'verbose',
+    name: 'verbose',
+    path: 'Example.verbose',
+    className: 'Example.verbose',
+    kind: 'module',
+    depth: 1,
+    tags: ['attention'],
+    summaryLines: ['one line', 'two line', 'three line'],
+    children: [],
+  })
+
+  assert.ok(verbose.height > compact.height)
 })

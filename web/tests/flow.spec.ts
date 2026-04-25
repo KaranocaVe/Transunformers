@@ -134,8 +134,8 @@ test('renders trace-backed flow mode without requesting structure chunks', async
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-mode', 'flow')
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-layout-status', 'ready')
   await expect(page.getByTestId('workspace-title')).toContainText('FlowReadyModel')
-  await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-node-count', '3')
-  await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-edge-count', '2')
+  await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-node-count', '2')
+  await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-edge-count', '1')
   await expect(page.getByText('Runtime path')).toBeVisible()
   expect(chunkRequests).toBe(0)
 })
@@ -161,7 +161,7 @@ test('keeps flow mode in loading state until the trace summary resolves', async 
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-node-count', '0')
 
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-layout-status', 'ready')
-  await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-node-count', '3')
+  await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-node-count', '2')
 })
 
 test('waits for manifest resolution before showing trace unavailable state', async ({ page }) => {
@@ -225,5 +225,5 @@ test('resolves slash-containing Hugging Face model ids through the index in flow
 
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-mode', 'flow')
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-layout-status', 'ready')
-  await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-node-count', '3')
+  await expect(page.getByTestId('workspace')).toHaveAttribute('data-graph-node-count', '2')
 })
