@@ -32,7 +32,6 @@ const ROOT_LAYOUT_OPTIONS: Record<string, string> = {
 }
 
 const CONTAINER_LAYOUT_OPTIONS: Record<string, string> = {
-  'elk.algorithm': 'layered',
   'elk.spacing.nodeNode': '20',
   'elk.spacing.edgeNode': '14',
   'elk.spacing.edgeEdge': '10',
@@ -41,8 +40,6 @@ const CONTAINER_LAYOUT_OPTIONS: Record<string, string> = {
   'elk.layered.spacing.edgeEdgeBetweenLayers': '12',
   'elk.layered.nodePlacement.favorStraightEdges': 'true',
   'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
-  'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-  'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
   'elk.edgeRouting': 'ORTHOGONAL',
   'elk.contentAlignment': 'H_CENTER V_TOP',
   'elk.nodeSize.constraints': 'MINIMUM_SIZE',
@@ -130,12 +127,6 @@ const buildElkTree = (
     const layoutOptions: Record<string, string> = {
       ...CONTAINER_LAYOUT_OPTIONS,
       'elk.direction': flowMode?.mode === 'parallel' ? 'RIGHT' : 'DOWN',
-    }
-    if (flowMode?.mode === 'parallel') {
-      // ELK crashes on compound parent→child branch routing when model-order constraints
-      // are forced inside the same parallel container, so keep the explicit order hint only
-      // for indexed/sequential child flows.
-      delete layoutOptions['elk.layered.considerModelOrder.strategy']
     }
     elkNode.layoutOptions = {
       ...layoutOptions,
